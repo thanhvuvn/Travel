@@ -10,8 +10,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { MOCK_PLACES } from '../data/mockPlaces';
-import { colors } from '../theme/colors';
 import { Itinerary, ItineraryDay, ItineraryItem, Place } from '../types';
 import { formatCurrency } from '../utils/format';
 
@@ -19,8 +20,10 @@ interface ItineraryScreenProps {
   initialItinerary?: Itinerary | null;
 }
 
-export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinerary }) => {
-  // Dữ liệu lịch trình mẫu sinh từ AI nếu chưa có state truyền vào
+export const ItineraryScreen: React.FC<ItineraryScreenProps> = () => {
+  const { theme } = useTheme();
+  const { user, openAuthModal } = useAuth();
+
   const defaultPlacesMap: Record<string, Place> = {};
   MOCK_PLACES.forEach((p) => {
     defaultPlacesMap[p.id] = p;
@@ -123,11 +126,8 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
   ]);
 
   const currentDay = days[activeDayIndex] || days[0];
-
-  // Tính tổng chi phí cho ngày hiện tại
   const currentDayCost = currentDay.items.reduce((sum, it) => sum + it.est_cost, 0);
 
-  // Mở Google Maps dẫn đường
   const handleOpenGoogleMaps = (item?: ItineraryItem) => {
     let url = '';
     if (item && item.place) {
@@ -144,7 +144,6 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
     }
   };
 
-  // Đổi thứ tự địa điểm an toàn (Nút Lên / Xuống)
   const moveItem = (index: number, direction: 'up' | 'down') => {
     const newItems = [...currentDay.items];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -159,7 +158,6 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
     setDays(newDays);
   };
 
-  // Xóa địa điểm khỏi ngày
   const removeItem = (index: number) => {
     Alert.alert('Xác nhận xóa', 'Bạn có chắc chắn muốn bỏ địa điểm này khỏi lịch trình?', [
       { text: 'Hủy', style: 'cancel' },
@@ -176,29 +174,53 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
     ]);
   };
 
+  const handleSaveItinerary = () => {
+    if (!user) {
+      Alert.alert(
+        'Yêu cầu đăng nhập',
+        'Bạn cần đăng nhập tài khoản để lưu và đồng bộ lịch trình.',
+        [
+          { text: 'Để sau', style: 'cancel' },
+          { text: 'Đăng nhập ngay', onPress: () => openAuthModal('login') },
+        ]
+      );
+      return;
+    }
+    Alert.alert('Đã lưu!', 'Lịch trình đã được lưu vào tài khoản của bạn.');
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* SIMULATED MAP VIEW */}
-      <View style={styles.mapContainer}>
-        {/* Fake Map Background */}
-        <View style={styles.mapBackground}>
+      <View style={[styles.mapContainer, { borderBottomColor: theme.border }]}>
+        <View
+          style={[
+            styles.mapBackground,
+            { backgroundColor: theme.isDark ? '#0F1E36' : '#E0F2FE' },
+          ]}
+        >
           <View style={styles.gridOverlay} />
         </View>
 
-        {/* Map Header Overlay */}
         <View style={styles.mapOverlayTop}>
-          <View style={styles.mapPill}>
-            <Ionicons name="map-outline" size={12} color={colors.accent} />
-            <Text style={styles.mapPillText}>OpenStreetMap / Tọa độ thực</Text>
+          <View
+            style={[
+              styles.mapPill,
+              { backgroundColor: theme.isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255,255,255,0.9)' },
+            ]}
+          >
+            <Ionicons name="map-outline" size={12} color={theme.accent} />
+            <Text style={[styles.mapPillText, { color: theme.text }]}>
+              OpenStreetMap / Tọa độ thực
+            </Text>
           </View>
-          <View style={styles.areaBadge}>
+          <View style={[styles.areaBadge, { backgroundColor: theme.primary }]}>
             <Text style={styles.areaBadgeText}>
               {currentDay.area === 'danang' ? 'Khu vực: Đà Nẵng' : 'Khu vực: Hội An'}
             </Text>
           </View>
         </View>
 
-        {/* Simulated Route Pins & Line */}
         <View style={styles.pinsContainer}>
           {currentDay.items.map((it, idx) => (
             <TouchableOpacity
@@ -206,13 +228,13 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
               style={[
                 styles.mapPinWrap,
                 {
-                  left: `${15 + idx * 18}%`,
-                  top: `${25 + (idx % 2 === 0 ? 0 : 35)}%`,
+                  left: `${12 + idx * 17}%`,
+                  top: `${26 + (idx % 2 === 0 ? 0 : 32)}%`,
                 },
               ]}
               onPress={() => handleOpenGoogleMaps(it)}
             >
-              <View style={styles.pinCircle}>
+              <View style={[styles.pinCircle, { backgroundColor: theme.primary }]}>
                 <Text style={styles.pinNumber}>{idx + 1}</Text>
               </View>
               <View style={styles.pinCallout}>
@@ -224,9 +246,8 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
           ))}
         </View>
 
-        {/* Directions Button Overlay */}
         <TouchableOpacity
-          style={styles.directionsBtn}
+          style={[styles.directionsBtn, { backgroundColor: theme.primary }]}
           onPress={() => handleOpenGoogleMaps()}
           activeOpacity={0.8}
         >
@@ -236,17 +257,31 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
       </View>
 
       {/* DAY SWITCHER TABS */}
-      <View style={styles.dayTabsBar}>
+      <View
+        style={[
+          styles.dayTabsBar,
+          { backgroundColor: theme.navBg, borderBottomColor: theme.border },
+        ]}
+      >
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayTabsScroll}>
           {days.map((d, index) => {
             const isActive = index === activeDayIndex;
             return (
               <TouchableOpacity
                 key={d.day}
-                style={[styles.dayTabBtn, isActive && styles.dayTabBtnActive]}
+                style={[
+                  styles.dayTabBtn,
+                  { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
+                  isActive && { backgroundColor: theme.primary, borderColor: theme.primary },
+                ]}
                 onPress={() => setActiveDayIndex(index)}
               >
-                <Text style={[styles.dayTabBtnText, isActive && styles.dayTabBtnTextActive]}>
+                <Text
+                  style={[
+                    styles.dayTabBtnText,
+                    { color: isActive ? '#fff' : theme.textMuted },
+                  ]}
+                >
                   Ngày {d.day} ({d.area === 'danang' ? 'Đà Nẵng' : 'Hội An'})
                 </Text>
               </TouchableOpacity>
@@ -254,8 +289,10 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
           })}
         </ScrollView>
         <View style={styles.dayCostWrap}>
-          <Text style={styles.dayCostLabel}>Chi phí:</Text>
-          <Text style={styles.dayCostValue}>{formatCurrency(currentDayCost)}</Text>
+          <Text style={[styles.dayCostLabel, { color: theme.textSub }]}>Chi phí:</Text>
+          <Text style={[styles.dayCostValue, { color: theme.amber }]}>
+            {formatCurrency(currentDayCost)}
+          </Text>
         </View>
       </View>
 
@@ -267,45 +304,58 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
 
           return (
             <View key={item.id} style={styles.timelineRow}>
-              {/* Left Timeline Indicator */}
               <View style={styles.timelineIndicatorCol}>
-                <View style={styles.timelineNumberBadge}>
-                  <Text style={styles.timelineNumberText}>{index + 1}</Text>
+                <View
+                  style={[
+                    styles.timelineNumberBadge,
+                    { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                  ]}
+                >
+                  <Text style={[styles.timelineNumberText, { color: theme.primaryLight }]}>
+                    {index + 1}
+                  </Text>
                 </View>
-                {!isLast && <View style={styles.timelineLine} />}
+                {!isLast && (
+                  <View style={[styles.timelineLine, { backgroundColor: theme.border }]} />
+                )}
               </View>
 
-              {/* Right Content Card */}
-              <View style={styles.timelineCard}>
+              <View
+                style={[
+                  styles.timelineCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
                 <View style={styles.timelineCardHeader}>
-                  <View style={styles.timeTag}>
-                    <Ionicons name="time-outline" size={11} color={colors.primaryLight} />
-                    <Text style={styles.timeTagText}>{item.time}</Text>
+                  <View style={[styles.timeTag, { backgroundColor: theme.blueLight }]}>
+                    <Ionicons name="time-outline" size={11} color={theme.primaryLight} />
+                    <Text style={[styles.timeTagText, { color: theme.primaryLight }]}>
+                      {item.time}
+                    </Text>
                   </View>
 
-                  {/* Reorder Buttons [▲] [▼] & Delete [x] */}
                   <View style={styles.reorderControls}>
                     {!isFirst && (
                       <TouchableOpacity
-                        style={styles.reorderBtn}
+                        style={[styles.reorderBtn, { backgroundColor: theme.bg }]}
                         onPress={() => moveItem(index, 'up')}
                       >
-                        <Ionicons name="arrow-up" size={12} color={colors.textMuted} />
+                        <Ionicons name="arrow-up" size={12} color={theme.textMuted} />
                       </TouchableOpacity>
                     )}
                     {!isLast && (
                       <TouchableOpacity
-                        style={styles.reorderBtn}
+                        style={[styles.reorderBtn, { backgroundColor: theme.bg }]}
                         onPress={() => moveItem(index, 'down')}
                       >
-                        <Ionicons name="arrow-down" size={12} color={colors.textMuted} />
+                        <Ionicons name="arrow-down" size={12} color={theme.textMuted} />
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
-                      style={styles.reorderBtnDelete}
+                      style={[styles.reorderBtnDelete, { backgroundColor: theme.roseLight }]}
                       onPress={() => removeItem(index)}
                     >
-                      <Ionicons name="trash-outline" size={12} color={colors.rose} />
+                      <Ionicons name="trash-outline" size={12} color={theme.rose} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -315,21 +365,30 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
                     <Image source={{ uri: item.place.image }} style={styles.cardThumb} />
                   )}
                   <View style={styles.cardDetails}>
-                    <Text style={styles.cardTitle}>{item.place?.name || 'Địa điểm'}</Text>
-                    <Text style={styles.cardNote}>{item.note}</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>
+                      {item.place?.name || 'Địa điểm'}
+                    </Text>
+                    <Text style={[styles.cardNote, { color: theme.textMuted }]}>
+                      {item.note}
+                    </Text>
                   </View>
                 </View>
 
-                <View style={styles.cardFooter}>
-                  <Text style={styles.cardCost}>
-                    Dự trù: <Text style={styles.cardCostVal}>{formatCurrency(item.est_cost)}</Text>
+                <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+                  <Text style={[styles.cardCost, { color: theme.textSub }]}>
+                    Dự trù:{' '}
+                    <Text style={[styles.cardCostVal, { color: theme.emerald }]}>
+                      {formatCurrency(item.est_cost)}
+                    </Text>
                   </Text>
                   <TouchableOpacity
                     style={styles.directNavBtn}
                     onPress={() => handleOpenGoogleMaps(item)}
                   >
-                    <Ionicons name="location-outline" size={12} color={colors.accent} />
-                    <Text style={styles.directNavBtnText}>Bản đồ</Text>
+                    <Ionicons name="location-outline" size={12} color={theme.accent} />
+                    <Text style={[styles.directNavBtnText, { color: theme.accent }]}>
+                      Bản đồ
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -339,10 +398,15 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
       </ScrollView>
 
       {/* FOOTER ACTIONS */}
-      <View style={styles.footerBar}>
+      <View
+        style={[
+          styles.footerBar,
+          { backgroundColor: theme.navBg, borderTopColor: theme.border },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={() => Alert.alert('Đã lưu!', 'Lịch trình đã được lưu vào bộ nhớ máy.')}
+          style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+          onPress={handleSaveItinerary}
           activeOpacity={0.8}
         >
           <Ionicons name="bookmark" size={16} color="#fff" />
@@ -350,11 +414,16 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.shareBtn}
-          onPress={() => Alert.alert('Xuất PDF', 'Tính năng xuất file PDF đẹp mắt bằng expo-print & expo-sharing.')}
+          style={[
+            styles.shareBtn,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+          onPress={() =>
+            Alert.alert('Xuất PDF', 'Tính năng xuất file PDF đẹp mắt bằng expo-print & expo-sharing.')
+          }
           activeOpacity={0.8}
         >
-          <Ionicons name="share-social-outline" size={16} color={colors.textLight} />
+          <Ionicons name="share-social-outline" size={16} color={theme.text} />
         </TouchableOpacity>
       </View>
     </View>
@@ -362,26 +431,9 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({ initialItinera
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgDark,
-  },
-  mapContainer: {
-    height: 190,
-    backgroundColor: colors.surfaceDark,
-    position: 'relative',
-    overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderDark,
-  },
-  mapBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0F1E36',
-  },
+  container: { flex: 1 },
+  mapContainer: { height: 190, position: 'relative', overflow: 'hidden', borderBottomWidth: 1 },
+  mapBackground: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   gridOverlay: {
     position: 'absolute',
     top: 0,
@@ -405,56 +457,26 @@ const styles = StyleSheet.create({
   mapPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     gap: 4,
   },
-  mapPillText: {
-    fontSize: 9,
-    color: colors.textLight,
-  },
-  areaBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  areaBadgeText: {
-    fontSize: 9,
-    color: '#fff',
-    fontWeight: '700',
-  },
-  pinsContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  mapPinWrap: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
+  mapPillText: { fontSize: 9, fontWeight: '600' },
+  areaBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  areaBadgeText: { fontSize: 9, color: '#fff', fontWeight: '700' },
+  pinsContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  mapPinWrap: { position: 'absolute', alignItems: 'center' },
   pinCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary,
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
   },
-  pinNumber: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#fff',
-  },
+  pinNumber: { fontSize: 10, fontWeight: '800', color: '#fff' },
   pinCallout: {
     backgroundColor: 'rgba(15, 23, 42, 0.9)',
     paddingHorizontal: 5,
@@ -463,118 +485,48 @@ const styles = StyleSheet.create({
     marginTop: 2,
     maxWidth: 90,
   },
-  pinCalloutText: {
-    fontSize: 8,
-    color: '#fff',
-    fontWeight: '600',
-  },
+  pinCalloutText: { fontSize: 8, color: '#fff', fontWeight: '600' },
   directionsBtn: {
     position: 'absolute',
     bottom: 8,
     right: 10,
-    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     gap: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
     zIndex: 20,
   },
-  directionsBtnText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  directionsBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   dayTabsBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#070D18',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderDark,
   },
-  dayTabsScroll: {
-    gap: 6,
-  },
-  dayTabBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceDark,
-  },
-  dayTabBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  dayTabBtnText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  dayTabBtnTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  dayCostWrap: {
-    alignItems: 'flex-end',
-    marginLeft: 8,
-  },
-  dayCostLabel: {
-    fontSize: 8,
-    color: colors.textSub,
-  },
-  dayCostValue: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.amber,
-  },
-  timelineScroll: {
-    padding: 14,
-    paddingBottom: 24,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  timelineIndicatorCol: {
-    alignItems: 'center',
-    width: 24,
-    marginRight: 10,
-  },
+  dayTabsScroll: { gap: 6 },
+  dayTabBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  dayTabBtnText: { fontSize: 11, fontWeight: '700' },
+  dayCostWrap: { alignItems: 'flex-end', marginLeft: 8 },
+  dayCostLabel: { fontSize: 8 },
+  dayCostValue: { fontSize: 11, fontWeight: '800' },
+  timelineScroll: { padding: 14, paddingBottom: 24 },
+  timelineRow: { flexDirection: 'row', marginBottom: 8 },
+  timelineIndicatorCol: { alignItems: 'center', width: 24, marginRight: 10 },
   timelineNumberBadge: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.blueLight,
     borderWidth: 1,
-    borderColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timelineNumberText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primaryLight,
-  },
-  timelineLine: {
-    flex: 1,
-    width: 2,
-    backgroundColor: colors.borderDark,
-    marginVertical: 4,
-  },
-  timelineCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceDark,
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.borderDark,
-  },
+  timelineNumberText: { fontSize: 10, fontWeight: '700' },
+  timelineLine: { flex: 1, width: 2, marginVertical: 4 },
+  timelineCard: { flex: 1, borderRadius: 14, padding: 10, borderWidth: 1 },
   timelineCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -584,55 +536,20 @@ const styles = StyleSheet.create({
   timeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.blueLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     gap: 4,
   },
-  timeTagText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primaryLight,
-  },
-  reorderControls: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  reorderBtn: {
-    padding: 3,
-    borderRadius: 4,
-    backgroundColor: colors.bgDark,
-  },
-  reorderBtnDelete: {
-    padding: 3,
-    borderRadius: 4,
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-  },
-  cardMain: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  cardThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-  },
-  cardDetails: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textLight,
-  },
-  cardNote: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-    lineHeight: 14,
-  },
+  timeTagText: { fontSize: 9, fontWeight: '700' },
+  reorderControls: { flexDirection: 'row', gap: 4 },
+  reorderBtn: { padding: 4, borderRadius: 4 },
+  reorderBtnDelete: { padding: 4, borderRadius: 4 },
+  cardMain: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  cardThumb: { width: 44, height: 44, borderRadius: 8 },
+  cardDetails: { flex: 1 },
+  cardTitle: { fontSize: 12, fontWeight: '700' },
+  cardNote: { fontSize: 10, marginTop: 2, lineHeight: 14 },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -640,37 +557,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
-  cardCost: {
-    fontSize: 9,
-    color: colors.textSub,
-  },
-  cardCostVal: {
-    color: colors.emerald,
-    fontWeight: '700',
-  },
-  directNavBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  directNavBtnText: {
-    fontSize: 9,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  footerBar: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#070D18',
-    borderTopWidth: 1,
-    borderTopColor: colors.borderDark,
-    gap: 10,
-  },
+  cardCost: { fontSize: 9 },
+  cardCostVal: { fontWeight: '700' },
+  directNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  directNavBtnText: { fontSize: 9, fontWeight: '600' },
+  footerBar: { flexDirection: 'row', padding: 12, borderTopWidth: 1, gap: 10 },
   saveBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -678,18 +572,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
-  saveBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  saveBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   shareBtn: {
-    backgroundColor: colors.surfaceDark,
     paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderDark,
   },
 });

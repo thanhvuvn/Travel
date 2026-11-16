@@ -10,13 +10,14 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 interface VisionScreenProps {
   onAddToItinerary?: () => void;
 }
 
 export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) => {
+  const { theme } = useTheme();
   const [isScanning, setIsScanning] = useState(false);
   const [activeImageKey, setActiveImageKey] = useState<'miquang' | 'caurong'>('miquang');
 
@@ -60,32 +61,35 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) 
   };
 
   return (
-    <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.badgeWrap}>
-          <Ionicons name="sparkles" size={12} color={colors.accent} />
-          <Text style={styles.badgeText}>GEMINI VISION AI</Text>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.surface, borderBottomColor: theme.border },
+        ]}
+      >
+        <View style={[styles.badgeWrap, { backgroundColor: theme.blueLight }]}>
+          <Ionicons name="sparkles" size={12} color={theme.accent} />
+          <Text style={[styles.badgeText, { color: theme.accent }]}>GEMINI VISION AI</Text>
         </View>
-        <Text style={styles.headerTitle}>Quét Món Ăn & Danh Thắng</Text>
-        <Text style={styles.headerSub}>Chụp ảnh để AI nhận diện và tìm quán ngon chuẩn vị</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          Quét Món Ăn & Danh Thắng
+        </Text>
+        <Text style={[styles.headerSub, { color: theme.textMuted }]}>
+          Chụp ảnh để AI nhận diện và tìm quán ngon chuẩn vị
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* VIEWFINDER CAMERA SIMULATION */}
         <View style={styles.viewfinderContainer}>
           <Image source={{ uri: currentSample.url }} style={styles.previewImage} />
+          <View style={[styles.scannerLaser, { backgroundColor: theme.accent }]} />
 
-          {/* Scanner laser bar */}
-          <View style={styles.scannerLaser} />
+          <View style={[styles.corner, styles.cornerTL, { borderColor: theme.accent }]} />
+          <View style={[styles.corner, styles.cornerTR, { borderColor: theme.accent }]} />
+          <View style={[styles.corner, styles.cornerBL, { borderColor: theme.accent }]} />
+          <View style={[styles.corner, styles.cornerBR, { borderColor: theme.accent }]} />
 
-          {/* Corner borders */}
-          <View style={[styles.corner, styles.cornerTL]} />
-          <View style={[styles.corner, styles.cornerTR]} />
-          <View style={[styles.corner, styles.cornerBL]} />
-          <View style={[styles.corner, styles.cornerBR]} />
-
-          {/* Status Chip */}
           <View style={styles.scanStatusPill}>
             {isScanning ? (
               <View style={styles.scanningRow}>
@@ -94,79 +98,115 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) 
               </View>
             ) : (
               <View style={styles.scanningRow}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.emerald} />
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                 <Text style={styles.scanStatusText}>Đã nhận diện thành công!</Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* SAMPLE SWITCHER BUTTONS */}
         <View style={styles.sampleSwitcherSection}>
-          <Text style={styles.switcherLabel}>Thử nghiệm với mẫu ảnh có sẵn:</Text>
+          <Text style={[styles.switcherLabel, { color: theme.textSub }]}>
+            Thử nghiệm với mẫu ảnh có sẵn:
+          </Text>
           <View style={styles.switcherButtonsRow}>
             <TouchableOpacity
               style={[
                 styles.sampleBtn,
-                activeImageKey === 'miquang' && styles.sampleBtnActive,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+                activeImageKey === 'miquang' && {
+                  backgroundColor: theme.blueLight,
+                  borderColor: theme.primaryLight,
+                },
               ]}
               onPress={() => triggerScan('miquang')}
             >
               <Text style={styles.sampleBtnEmoji}>🍜</Text>
-              <Text style={styles.sampleBtnText}>Mì Quảng</Text>
+              <Text style={[styles.sampleBtnText, { color: theme.text }]}>Mì Quảng</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.sampleBtn,
-                activeImageKey === 'caurong' && styles.sampleBtnActive,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+                activeImageKey === 'caurong' && {
+                  backgroundColor: theme.blueLight,
+                  borderColor: theme.primaryLight,
+                },
               ]}
               onPress={() => triggerScan('caurong')}
             >
               <Text style={styles.sampleBtnEmoji}>🐉</Text>
-              <Text style={styles.sampleBtnText}>Cầu Rồng</Text>
+              <Text style={[styles.sampleBtnText, { color: theme.text }]}>Cầu Rồng</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.sampleBtnCustom}
-              onPress={() => Alert.alert('Camera', 'Tính năng mở expo-image-picker để chọn ảnh từ máy thật.')}
+              style={[
+                styles.sampleBtnCustom,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+              onPress={() =>
+                Alert.alert('Camera', 'Tính năng mở expo-image-picker để chọn ảnh từ máy thật.')
+              }
             >
-              <Ionicons name="camera-outline" size={16} color={colors.textLight} />
-              <Text style={styles.sampleBtnCustomText}>Chụp ảnh</Text>
+              <Ionicons name="camera-outline" size={16} color={theme.text} />
+              <Text style={[styles.sampleBtnCustomText, { color: theme.text }]}>Chụp ảnh</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* AI RESULT CARD */}
-        <View style={styles.resultCard}>
+        <View
+          style={[
+            styles.resultCard,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
           <View style={styles.resultHeader}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{currentSample.category}</Text>
+            <View style={[styles.categoryBadge, { backgroundColor: theme.blueLight }]}>
+              <Text style={[styles.categoryBadgeText, { color: theme.primaryLight }]}>
+                {currentSample.category}
+              </Text>
             </View>
             <View style={styles.confidenceBadge}>
-              <Ionicons name="flash" size={12} color={colors.emerald} />
-              <Text style={styles.confidenceText}>Độ tin cậy {currentSample.confidence}%</Text>
+              <Ionicons name="flash" size={12} color={theme.emerald} />
+              <Text style={[styles.confidenceText, { color: theme.emerald }]}>
+                Độ tin cậy {currentSample.confidence}%
+              </Text>
             </View>
           </View>
 
-          <Text style={styles.resultTitle}>{currentSample.title}</Text>
-          <Text style={styles.resultDesc}>{currentSample.desc}</Text>
+          <Text style={[styles.resultTitle, { color: theme.text }]}>{currentSample.title}</Text>
+          <Text style={[styles.resultDesc, { color: theme.textMuted }]}>{currentSample.desc}</Text>
 
-          {/* MATCHED PLACE IN DATABASE */}
-          <View style={styles.matchedSection}>
-            <Text style={styles.matchedLabel}>Địa điểm chuẩn vị trong hệ thống:</Text>
-            <View style={styles.matchedBox}>
+          <View style={[styles.matchedSection, { borderTopColor: theme.border }]}>
+            <Text style={[styles.matchedLabel, { color: theme.textSub }]}>
+              Địa điểm chuẩn vị trong hệ thống:
+            </Text>
+            <View
+              style={[
+                styles.matchedBox,
+                { backgroundColor: theme.bg, borderColor: theme.border },
+              ]}
+            >
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.matchedName}>{currentSample.matchedPlace.name}</Text>
-                <Text style={styles.matchedAddress}>{currentSample.matchedPlace.address}</Text>
+                <Text style={[styles.matchedName, { color: theme.text }]}>
+                  {currentSample.matchedPlace.name}
+                </Text>
+                <Text style={[styles.matchedAddress, { color: theme.textSub }]}>
+                  {currentSample.matchedPlace.address}
+                </Text>
                 <View style={styles.matchedMeta}>
-                  <Text style={styles.matchedCost}>{currentSample.matchedPlace.cost}</Text>
-                  <Text style={styles.matchedDistance}>• Cách bạn {currentSample.matchedPlace.distance}</Text>
+                  <Text style={[styles.matchedCost, { color: theme.emerald }]}>
+                    {currentSample.matchedPlace.cost}
+                  </Text>
+                  <Text style={[styles.matchedDistance, { color: theme.textMuted }]}>
+                    • Cách bạn {currentSample.matchedPlace.distance}
+                  </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={styles.addBtn}
+                style={[styles.addBtn, { backgroundColor: theme.primary }]}
                 onPress={() => {
                   Alert.alert('Thành công', 'Đã thêm địa điểm này vào lịch trình hôm nay!');
                   if (onAddToItinerary) onAddToItinerary();
@@ -184,49 +224,27 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) 
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgDark,
-  },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: colors.surfaceDark,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderDark,
     alignItems: 'center',
   },
   badgeWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.blueLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
     gap: 4,
     marginBottom: 4,
   },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: 0.5,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textLight,
-  },
-  headerSub: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 30,
-  },
+  badgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  headerTitle: { fontSize: 15, fontWeight: '800' },
+  headerSub: { fontSize: 10, marginTop: 2 },
+  scrollContent: { padding: 16, paddingBottom: 30 },
   viewfinderContainer: {
     height: 220,
     backgroundColor: '#070D18',
@@ -237,51 +255,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(56, 189, 248, 0.4)',
     borderStyle: 'dashed',
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  scannerLaser: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '48%',
-    height: 2,
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-  },
-  corner: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    borderColor: colors.accent,
-  },
-  cornerTL: {
-    top: 8,
-    left: 8,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-  },
-  cornerTR: {
-    top: 8,
-    right: 8,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-  },
-  cornerBL: {
-    bottom: 8,
-    left: 8,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-  },
-  cornerBR: {
-    bottom: 8,
-    right: 8,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-  },
+  previewImage: { width: '100%', height: '100%' },
+  scannerLaser: { position: 'absolute', left: 0, right: 0, top: '48%', height: 2 },
+  corner: { position: 'absolute', width: 20, height: 20 },
+  cornerTL: { top: 8, left: 8, borderTopWidth: 3, borderLeftWidth: 3 },
+  cornerTR: { top: 8, right: 8, borderTopWidth: 3, borderRightWidth: 3 },
+  cornerBL: { bottom: 8, left: 8, borderBottomWidth: 3, borderLeftWidth: 3 },
+  cornerBR: { bottom: 8, right: 8, borderBottomWidth: 3, borderRightWidth: 3 },
   scanStatusPill: {
     position: 'absolute',
     bottom: 10,
@@ -290,167 +270,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderDark,
   },
-  scanningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  scanStatusText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  sampleSwitcherSection: {
-    marginTop: 14,
-  },
-  switcherLabel: {
-    fontSize: 10,
-    color: colors.textSub,
-    marginBottom: 6,
-  },
-  switcherButtonsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  scanningRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  scanStatusText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  sampleSwitcherSection: { marginTop: 14 },
+  switcherLabel: { fontSize: 10, marginBottom: 6 },
+  switcherButtonsRow: { flexDirection: 'row', gap: 8 },
   sampleBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceDark,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderDark,
     gap: 6,
   },
-  sampleBtnActive: {
-    backgroundColor: colors.blueLight,
-    borderColor: colors.primaryLight,
-  },
-  sampleBtnEmoji: {
-    fontSize: 14,
-  },
-  sampleBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textLight,
-  },
+  sampleBtnEmoji: { fontSize: 14 },
+  sampleBtnText: { fontSize: 11, fontWeight: '700' },
   sampleBtnCustom: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceDark,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderDark,
     gap: 6,
   },
-  sampleBtnCustomText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textLight,
-  },
-  resultCard: {
-    marginTop: 16,
-    backgroundColor: colors.surfaceDark,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.borderDark,
-  },
+  sampleBtnCustomText: { fontSize: 11, fontWeight: '600' },
+  resultCard: { marginTop: 16, borderRadius: 18, padding: 14, borderWidth: 1 },
   resultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  categoryBadge: {
-    backgroundColor: colors.blueLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  categoryBadgeText: {
-    fontSize: 9,
-    color: colors.primaryLight,
-    fontWeight: '700',
-  },
-  confidenceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  confidenceText: {
-    fontSize: 10,
-    color: colors.emerald,
-    fontWeight: '800',
-  },
-  resultTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textLight,
-  },
-  resultDesc: {
-    fontSize: 11,
-    color: colors.textMuted,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  matchedSection: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderDark,
-  },
-  matchedLabel: {
-    fontSize: 10,
-    color: colors.textSub,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
+  categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  categoryBadgeText: { fontSize: 9, fontWeight: '700' },
+  confidenceBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  confidenceText: { fontSize: 10, fontWeight: '800' },
+  resultTitle: { fontSize: 14, fontWeight: '800' },
+  resultDesc: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  matchedSection: { marginTop: 12, paddingTop: 10, borderTopWidth: 1 },
+  matchedLabel: { fontSize: 10, marginBottom: 8, fontWeight: '600' },
   matchedBox: {
-    backgroundColor: colors.bgDark,
     borderRadius: 14,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.borderDark,
   },
-  matchedName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textLight,
-  },
-  matchedAddress: {
-    fontSize: 9,
-    color: colors.textSub,
-    marginTop: 2,
-  },
-  matchedMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  matchedCost: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.emerald,
-  },
-  matchedDistance: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginLeft: 4,
-  },
+  matchedName: { fontSize: 12, fontWeight: '700' },
+  matchedAddress: { fontSize: 9, marginTop: 2 },
+  matchedMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  matchedCost: { fontSize: 10, fontWeight: '700' },
+  matchedDistance: { fontSize: 9, marginLeft: 4 },
   addBtn: {
-    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
@@ -458,9 +335,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 4,
   },
-  addBtnText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  addBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
