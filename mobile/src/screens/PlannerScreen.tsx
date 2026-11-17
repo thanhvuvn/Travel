@@ -11,8 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { GUEST_AI_LIMIT, useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Area } from '../types';
+import { Area, WeatherCondition } from '../types';
 import { formatCurrency } from '../utils/format';
+import { MOCK_TRAVEL_EVENTS } from '../data/mockEvents';
+import { LOCAL_TIMING_TIPS } from '../data/mockWeather';
 
 interface PlannerScreenProps {
   onPlanGenerated: () => void;
@@ -21,7 +23,7 @@ interface PlannerScreenProps {
 export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated }) => {
   const { theme } = useTheme();
   const { role, openAuthModal } = useAuth();
-  const { createPlan, guestUsed } = useAppData();
+  const { createPlan, guestUsed, weatherCondition } = useAppData();
   const [errorKind, setErrorKind] = useState<null | 'error' | 'limit' | 'empty'>(null);
   const [area, setArea] = useState<Area | 'both'>('both');
   const [days, setDays] = useState<number>(2);
@@ -32,6 +34,8 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
     'culture',
   ]);
   const [budget, setBudget] = useState<number>(3000000);
+  const [selectedEvent, setSelectedEvent] = useState<string>('none');
+  const [selectedWeather, setSelectedWeather] = useState<WeatherCondition>(weatherCondition);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState<number>(0);
 
@@ -81,7 +85,15 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
     setTimeout(() => {
       clearInterval(interval);
       setIsLoading(false);
-      const result = createPlan({ area, days, people, interests, budget });
+      const result = createPlan({
+        area,
+        days,
+        people,
+        interests,
+        budget,
+        event: selectedEvent,
+        weatherPreference: selectedWeather,
+      });
       if (result === 'ok') {
         onPlanGenerated();
       } else {
@@ -114,6 +126,24 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* BANNER GỢI Ý KHUNG GIỜ VÀNG */}
+        <View
+          style={[
+            styles.timingBanner,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <Ionicons name="time-outline" size={15} color={theme.secondary} />
+            <Text style={[styles.timingBannerTitle, { color: theme.text }]}>
+              Khung giờ vàng du lịch bản địa
+            </Text>
+          </View>
+          <Text style={[styles.timingBannerDesc, { color: theme.textMuted }]}>
+            AI sẽ tự động căn giờ: Phố cổ Hội An (sau 16:30 ngắm đèn lồng), Cầu Rồng (21:00 cuối tuần), Biển Mỹ Khê (sáng sớm hoặc chiều mát).
+          </Text>
+        </View>
+
         {/* STEP 1 */}
         <View
           style={[
@@ -336,6 +366,92 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           </View>
         </View>
 
+        {/* STEP 5: SỰ KIỆN & THỜI TIẾT ƯU TIÊN */}
+        <View
+          style={[
+            styles.stepSection,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <View style={styles.stepHeaderRow}>
+            <Text style={[styles.stepTitle, { color: theme.text, marginBottom: 0 }]}>
+              5. Mùa lễ hội & Thời tiết ưu tiên
+            </Text>
+            <Text style={[styles.stepTip, { color: theme.textSub }]}>Tối ưu trải nghiệm</Text>
+          </View>
+
+          {/* Chọn sự kiện */}
+          <Text style={[styles.fieldLabel, { color: theme.textMuted, marginTop: 10 }]}>
+            Sự kiện hoặc Lễ hội đặc biệt
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 6 }}>
+            {[
+              { id: 'none', title: 'Tự do / Thường nhật', icon: '✨' },
+              ...MOCK_TRAVEL_EVENTS.map((e) => ({ id: e.id, title: e.title, icon: e.icon })),
+            ].map((ev) => {
+              const active = selectedEvent === ev.id;
+              return (
+                <TouchableOpacity
+                  key={ev.id}
+                  style={[
+                    styles.eventOptionChip,
+                    { backgroundColor: theme.bg, borderColor: theme.border },
+                    active && { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                  ]}
+                  onPress={() => setSelectedEvent(ev.id)}
+                >
+                  <Text style={{ fontSize: 13 }}>{ev.icon}</Text>
+                  <Text
+                    style={[
+                      styles.eventOptionText,
+                      { color: active ? theme.primaryLight : theme.textMuted },
+                      active && { fontWeight: '700' },
+                    ]}
+                  >
+                    {ev.title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Chọn thời tiết */}
+          <Text style={[styles.fieldLabel, { color: theme.textMuted, marginTop: 12 }]}>
+            Điều kiện thời tiết dự kiến
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+            {[
+              { cond: 'sunny' as const, label: 'Nắng đẹp', icon: '☀️' },
+              { cond: 'cloudy' as const, label: 'Dịu mát', icon: '⛅' },
+              { cond: 'rainy' as const, label: 'Mưa rào (Trú mưa)', icon: '🌧️' },
+            ].map((w) => {
+              const active = selectedWeather === w.cond;
+              return (
+                <TouchableOpacity
+                  key={w.cond}
+                  style={[
+                    styles.weatherOptionBtn,
+                    { backgroundColor: theme.bg, borderColor: theme.border },
+                    active && { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                  ]}
+                  onPress={() => setSelectedWeather(w.cond)}
+                >
+                  <Text style={{ fontSize: 13 }}>{w.icon}</Text>
+                  <Text
+                    style={[
+                      styles.weatherOptionText,
+                      { color: active ? theme.secondary : theme.textMuted },
+                      active && { fontWeight: '700' },
+                    ]}
+                  >
+                    {w.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* GENERATE BUTTON */}
         <View style={styles.actionSection}>
           <TouchableOpacity
@@ -530,4 +646,35 @@ const styles = StyleSheet.create({
   errorDesc: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
   errorBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 6 },
   errorBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  timingBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  timingBannerTitle: { fontSize: 12, fontWeight: '700' },
+  timingBannerDesc: { fontSize: 10, lineHeight: 15, marginTop: 2 },
+  eventOptionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+  },
+  eventOptionText: { fontSize: 11, fontWeight: '600' },
+  weatherOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+  },
+  weatherOptionText: { fontSize: 10, fontWeight: '600' },
 });

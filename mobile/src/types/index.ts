@@ -2,6 +2,30 @@ export type Area = 'danang' | 'hoian';
 
 export type Category = 'all' | 'food' | 'beach' | 'checkin' | 'culture' | 'cafe';
 
+export type WeatherCondition = 'sunny' | 'rainy' | 'cloudy';
+
+export interface WeatherInfo {
+  area: Area;
+  temp: number;
+  condition: WeatherCondition;
+  label: string;
+  description: string;
+  recommendation: string;
+  rain_chance: number;
+  humidity: number;
+}
+
+export interface TravelEvent {
+  id: string;
+  title: string;
+  area: Area | 'both';
+  period: string;
+  badge: string;
+  icon: string;
+  description: string;
+  related_places: string[];
+}
+
 export interface Place {
   id: string;
   area: Area;
@@ -18,6 +42,10 @@ export interface Place {
   review_count: number;
   tags: string[];
   is_active: boolean;
+  best_time?: string;
+  weather_suitability?: 'all' | 'sunny' | 'rainy' | 'indoor';
+  events?: string[];
+  seasons?: ('spring' | 'summer' | 'autumn' | 'winter' | 'all')[];
 }
 
 export interface ItineraryItem {

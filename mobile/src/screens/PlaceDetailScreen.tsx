@@ -178,6 +178,57 @@ export const PlaceDetailScreen: React.FC<PlaceDetailScreenProps> = ({
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Giới thiệu</Text>
           <Text style={[styles.desc, { color: theme.textMuted }]}>{place.description}</Text>
 
+          {/* KHUNG GIỜ VÀNG & THỜI TIẾT LÝ TƯỞNG */}
+          {(place.best_time || place.weather_suitability) && (
+            <View
+              style={[
+                styles.timingCard,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Ionicons name="sparkles" size={15} color={theme.secondary} />
+                <Text style={[styles.timingTitle, { color: theme.text }]}>
+                  Mẹo Bản Địa & Khung Giờ Vàng
+                </Text>
+              </View>
+
+              {place.best_time && (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
+                  <Text style={{ fontSize: 13 }}>⏰</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.secondary }}>
+                      Khung giờ đẹp nhất:
+                    </Text>
+                    <Text style={{ fontSize: 11, color: theme.textMuted, lineHeight: 16 }}>
+                      {place.best_time}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {place.weather_suitability && (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                  <Text style={{ fontSize: 13 }}>
+                    {place.weather_suitability === 'indoor' ? '🏛️' : place.weather_suitability === 'sunny' ? '☀️' : '⛅'}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primaryLight }}>
+                      Thời tiết khuyến nghị:
+                    </Text>
+                    <Text style={{ fontSize: 11, color: theme.textMuted, lineHeight: 16 }}>
+                      {place.weather_suitability === 'indoor'
+                        ? 'Thích hợp mọi thời tiết, đặc biệt lý tưởng trú mưa hoặc tránh nắng gắt giữa trưa.'
+                        : place.weather_suitability === 'sunny'
+                        ? 'Lý tưởng nhất vào ngày nắng đẹp, tầm nhìn thoáng đãng và thuận tiện ngắm cảnh.'
+                        : 'Thích hợp ghé thăm quanh năm, không ngại mưa nắng.'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Vị trí</Text>
           <View style={[styles.coordBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Ionicons name="location" size={16} color={theme.rose} />
@@ -332,6 +383,8 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   sectionTitle: { fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 6 },
   desc: { fontSize: 13, lineHeight: 20 },
+  timingCard: { padding: 12, borderRadius: 14, borderWidth: 1, marginTop: 12 },
+  timingTitle: { fontSize: 12, fontWeight: '700' },
   coordBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   coordText: { fontSize: 12, fontFamily: 'monospace' },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 16 },

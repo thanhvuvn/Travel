@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { ItineraryDay, ItineraryItem, Place, Area } from '../types';
+import { ItineraryDay, ItineraryItem, Place, Area, WeatherCondition } from '../types';
 import { calculateHaversineDistance } from '../utils/distance';
 import { useAuth } from './AuthContext';
 import { usePlaces } from './PlacesContext';
@@ -20,6 +20,8 @@ export interface PlanParams {
   people: number;
   interests: string[];
   budget: number;
+  event?: string;
+  weatherPreference?: WeatherCondition;
 }
 
 export interface PlanState {
@@ -40,6 +42,10 @@ interface AppDataValue {
   favorites: string[];
   isFavorite: (placeId: string) => boolean;
   toggleFavorite: (placeId: string) => void;
+
+  // Thời tiết hiện tại (động)
+  weatherCondition: WeatherCondition;
+  setWeatherCondition: (c: WeatherCondition) => void;
 
   // Lịch trình
   plan: PlanState | null;
@@ -62,6 +68,8 @@ const AppDataContext = createContext<AppDataValue>({
   favorites: [],
   isFavorite: () => false,
   toggleFavorite: noop,
+  weatherCondition: 'sunny',
+  setWeatherCondition: noop,
   plan: null,
   guestUsed: 0,
   createPlan: () => 'error',
@@ -122,19 +130,40 @@ function buildDay(
   }
 
   const scored = shuffle(candidates)
-    .map((p) => ({ p, s: params.interests.includes(p.category) ? 1 : 0 }))
+    .map((p) => {
+      let score = 0;
+      if (params.interests.includes(p.category)) score += 2;
+      // Ưu tiên theo sự kiện đặc biệt
+      if (params.event && params.event !== 'none' && p.events?.includes(params.event)) {
+        score += 5;
+      }
+      // Ưu tiên theo thời tiết
+      if (params.weatherPreference === 'rainy') {
+        if (p.weather_suitability === 'indoor') score += 3;
+        if (p.category === 'beach') score -= 3;
+      } else if (params.weatherPreference === 'sunny') {
+        if (p.weather_suitability === 'sunny' || p.category === 'beach') score += 2;
+      }
+      return { p, s: score };
+    })
     .sort((a, b) => b.s - a.s)
     .slice(0, count)
     .map((x) => x.p);
 
-  const items: ItineraryItem[] = orderByProximity(scored).map((p, i) => ({
-    id: `${p.id}-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
-    place_id: p.id,
-    place: p,
-    time: TIME_SLOTS[i] ?? '21:00 - 22:00',
-    note: p.description,
-    est_cost: p.avg_cost * params.people,
-  }));
+  const items: ItineraryItem[] = orderByProximity(scored).map((p, i) => {
+    let noteText = p.description;
+    if (p.best_time) {
+      noteText = `⏰ Giờ vàng: ${p.best_time}. ${p.description}`;
+    }
+    return {
+      id: `${p.id}-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
+      place_id: p.id,
+      place: p,
+      time: TIME_SLOTS[i] ?? '21:00 - 22:00',
+      note: noteText,
+      est_cost: p.avg_cost * params.people,
+    };
+  });
 
   return { day: dayNumber, area: items[0]?.place?.area ?? dayArea, items };
 }
@@ -154,6 +183,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { role } = useAuth();
 
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>('sunny');
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [guestUsed, setGuestUsed] = useState(0);
   const [sim, setSimState] = useState<SimState>({
@@ -250,6 +280,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         favorites,
         isFavorite,
         toggleFavorite,
+        weatherCondition,
+        setWeatherCondition,
         plan,
         guestUsed,
         createPlan,

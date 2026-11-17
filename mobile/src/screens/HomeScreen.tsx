@@ -13,10 +13,12 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
-import { Area, Category, Place } from '../types';
+import { Area, Category, Place, WeatherCondition } from '../types';
 import { Alert } from '../utils/dialog';
 import { calculateHaversineDistance, formatDistance, MOCK_USER_LOCATION } from '../utils/distance';
 import { formatCurrency } from '../utils/format';
+import { MOCK_TRAVEL_EVENTS } from '../data/mockEvents';
+import { MOCK_WEATHER_DATA, LOCAL_TIMING_TIPS } from '../data/mockWeather';
 import { SuggestPlaceModal } from './SuggestPlaceModal';
 
 interface HomeScreenProps {
@@ -28,12 +30,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
   const { theme } = useTheme();
   const { user, openAuthModal } = useAuth();
   const { places } = usePlaces();
-  const { isFavorite, toggleFavorite, sim, setSim } = useAppData();
+  const {
+    isFavorite,
+    toggleFavorite,
+    weatherCondition,
+    setWeatherCondition,
+    sim,
+    setSim,
+  } = useAppData();
 
   const [selectedArea, setSelectedArea] = useState<Area | 'all'>('danang');
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestOpen, setSuggestOpen] = useState(false);
+
+  const activeWeatherArea: Area = selectedArea === 'hoian' ? 'hoian' : 'danang';
+  const currentWeather = MOCK_WEATHER_DATA[activeWeatherArea][weatherCondition];
 
   const handleSuggest = () => {
     if (!user) {
@@ -138,6 +150,152 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
           </View>
         </View>
 
+        {/* WIDGET THỜI TIẾT ĐỘNG & GỢI Ý THÔNG MINH */}
+        <View
+          style={[
+            styles.weatherCard,
+            {
+              backgroundColor: theme.surface,
+              borderColor:
+                weatherCondition === 'rainy'
+                  ? 'rgba(59,130,246,0.3)'
+                  : 'rgba(245,158,11,0.3)',
+            },
+          ]}
+        >
+          <View style={styles.weatherHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <Text style={{ fontSize: 24 }}>
+                {weatherCondition === 'sunny' ? '☀️' : weatherCondition === 'rainy' ? '🌧️' : '⛅'}
+              </Text>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.weatherTempText, { color: theme.text }]}>
+                    {currentWeather.temp}°C
+                  </Text>
+                  <Text style={[styles.weatherLabelText, { color: theme.primaryLight }]}>
+                    {currentWeather.label}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 10, color: theme.textSub }}>
+                  {activeWeatherArea === 'danang' ? 'Đà Nẵng' : 'Hội An'} • Độ ẩm {currentWeather.humidity}% • Mưa {currentWeather.rain_chance}%
+                </Text>
+              </View>
+            </View>
+
+            {/* Bộ chọn giả lập thời tiết cho Demo */}
+            <View style={styles.weatherSwitcher}>
+              {(
+                [
+                  { cond: 'sunny' as const, icon: '☀️' },
+                  { cond: 'rainy' as const, icon: '🌧️' },
+                  { cond: 'cloudy' as const, icon: '⛅' },
+                ] as const
+              ).map((w) => {
+                const active = weatherCondition === w.cond;
+                return (
+                  <TouchableOpacity
+                    key={w.cond}
+                    style={[
+                      styles.weatherSwitchBtn,
+                      active && { backgroundColor: theme.primary },
+                    ]}
+                    onPress={() => setWeatherCondition(w.cond)}
+                  >
+                    <Text style={{ fontSize: 11 }}>{w.icon}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Lời khuyên thích ứng thời tiết */}
+          <View
+            style={[
+              styles.weatherTipBox,
+              {
+                backgroundColor:
+                  weatherCondition === 'rainy' ? theme.blueLight : theme.amberLight,
+              },
+            ]}
+          >
+            <Ionicons
+              name={weatherCondition === 'rainy' ? 'umbrella-outline' : 'sunny-outline'}
+              size={13}
+              color={weatherCondition === 'rainy' ? theme.primaryLight : theme.secondary}
+              style={{ marginTop: 1 }}
+            />
+            <Text
+              style={[
+                styles.weatherTipText,
+                {
+                  color:
+                    weatherCondition === 'rainy' ? theme.primaryLight : theme.secondary,
+                },
+              ]}
+            >
+              <Text style={{ fontWeight: '700' }}>Gợi ý thời tiết: </Text>
+              {currentWeather.recommendation}
+            </Text>
+          </View>
+        </View>
+
+        {/* SECTION SỰ KIỆN & MÙA LỄ HỘI NỔI BẬT */}
+        <View style={{ marginTop: 12 }}>
+          <View style={[styles.sectionHeader, { marginTop: 4, marginBottom: 8 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="calendar-outline" size={15} color={theme.accent} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Sự kiện & Mùa lễ hội
+              </Text>
+            </View>
+            <Text style={[styles.sectionCount, { color: theme.accent, fontWeight: '700' }]}>
+              Đang diễn ra
+            </Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+          >
+            {MOCK_TRAVEL_EVENTS.map((ev) => (
+              <TouchableOpacity
+                key={ev.id}
+                style={[
+                  styles.eventCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+                activeOpacity={0.85}
+                onPress={onNavigateToPlanner}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 16 }}>{ev.icon}</Text>
+                  <View
+                    style={[
+                      styles.eventBadge,
+                      { backgroundColor: theme.blueLight },
+                    ]}
+                  >
+                    <Text style={[styles.eventBadgeText, { color: theme.primaryLight }]}>
+                      {ev.badge}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.eventTitle, { color: theme.text }]} numberOfLines={1}>
+                  {ev.title}
+                </Text>
+                <Text style={[styles.eventPeriod, { color: theme.secondary }]} numberOfLines={1}>
+                  📅 {ev.period}
+                </Text>
+                <Text style={[styles.eventDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                  {ev.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* AI BANNER */}
         <View style={[styles.aiBanner, { backgroundColor: theme.amberLight, borderColor: 'rgba(245,158,11,0.35)' }]}>
           <View style={{ flex: 1, paddingRight: 10 }}>
@@ -236,6 +394,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
                   <View style={{ padding: 10 }}>
                     <Text style={[styles.placeName, { color: theme.text }]} numberOfLines={1}>{place.name}</Text>
                     <Text style={[styles.placeType, { color: theme.textMuted }]} numberOfLines={1}>{place.type}</Text>
+                    
+                    {place.best_time && (
+                      <View style={[styles.bestTimeBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                        <Text style={[styles.bestTimeText, { color: theme.secondary }]} numberOfLines={1}>
+                          ⏰ {place.best_time.split('(')[0].trim()}
+                        </Text>
+                      </View>
+                    )}
+
+                    {weatherCondition === 'rainy' && place.weather_suitability === 'indoor' && (
+                      <View style={[styles.bestTimeBadge, { backgroundColor: theme.blueLight, borderColor: theme.primaryLight, marginTop: 3 }]}>
+                        <Text style={[styles.bestTimeText, { color: theme.primaryLight }]} numberOfLines={1}>
+                          ☔ Thích hợp trú mưa
+                        </Text>
+                      </View>
+                    )}
+
                     <View style={[styles.placeFooter, { borderTopColor: theme.border }]}>
                       <Text style={[styles.placeCost, { color: theme.emerald }]}>{formatCurrency(place.avg_cost)}</Text>
                       <Text style={[styles.placeHours, { color: theme.textSub }]}>{place.open_hours.split(' ')[0]}</Text>
@@ -374,4 +549,20 @@ const styles = StyleSheet.create({
   nearbyCost: { fontSize: 10, fontWeight: '600' },
   suggestCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 20, padding: 14, borderRadius: 16, borderWidth: 1 },
   suggestBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
+  weatherCard: { marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 16, borderWidth: 1 },
+  weatherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  weatherTempText: { fontSize: 16, fontWeight: '800' },
+  weatherLabelText: { fontSize: 11, fontWeight: '700' },
+  weatherSwitcher: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 12, padding: 2, gap: 2 },
+  weatherSwitchBtn: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 10 },
+  weatherTipBox: { flexDirection: 'row', alignItems: 'flex-start', padding: 8, borderRadius: 10, marginTop: 8, gap: 6 },
+  weatherTipText: { fontSize: 11, lineHeight: 16, flex: 1 },
+  eventCard: { width: 220, padding: 12, borderRadius: 16, borderWidth: 1 },
+  eventBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  eventBadgeText: { fontSize: 9, fontWeight: '700' },
+  eventTitle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+  eventPeriod: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  eventDesc: { fontSize: 10, lineHeight: 14, marginTop: 4 },
+  bestTimeBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, borderWidth: 1, marginTop: 4 },
+  bestTimeText: { fontSize: 9, fontWeight: '600' },
 });
