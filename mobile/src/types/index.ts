@@ -45,4 +45,55 @@ export interface Itinerary {
   created_at: string;
 }
 
-export type MainTab = 'home' | 'planner' | 'itinerary' | 'vision' | 'profile';
+export interface ManagedUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'admin';
+  is_locked: boolean;
+  created_at: string;
+}
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Review {
+  id: string;
+  place_id: string;
+  user_name: string;
+  rating: number;
+  content: string;
+  created_at: string;
+  status: ReviewStatus;
+}
+
+export interface PlaceSuggestion {
+  id: string;
+  name: string;
+  area: Area;
+  category: Category;
+  note: string;
+  lat: number | null;
+  lng: number | null;
+  user_name: string;
+  created_at: string;
+  status: ReviewStatus;
+}
+
+export type ReportStatus = 'open' | 'closed_confirmed' | 'dismissed';
+
+export interface PlaceReport {
+  id: string;
+  place_id: string;
+  user_name: string;
+  created_at: string;
+  status: ReportStatus;
+}
+
+export interface AIStat {
+  total_calls: number;
+  success_rate: number;
+  avg_time_sec: number;
+  prompt_tokens_est: number;
+}
+
+export type MainTab = 'home' | 'planner' | 'itinerary' | 'vision' | 'profile' | 'admin';
