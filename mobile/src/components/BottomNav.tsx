@@ -12,6 +12,7 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
   const { theme } = useTheme();
 
+  // Dành riêng cho người dùng du khách & khách vãng lai
   const tabs: { key: MainTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'home', label: 'Khám phá', icon: 'compass' },
     { key: 'planner', label: 'Tạo lịch', icon: 'sparkles' },

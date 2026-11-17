@@ -24,6 +24,9 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
+/** Vị trí GPS giả lập của người dùng (gần Cầu Sông Hàn, Đà Nẵng) */
+export const MOCK_USER_LOCATION = { lat: 16.068, lng: 108.2215 };
+
 export function formatDistance(km: number): string {
   if (km < 1) {
     return `${Math.round(km * 1000)}m`;
