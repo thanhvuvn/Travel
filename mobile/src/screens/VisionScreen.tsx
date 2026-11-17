@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -10,14 +9,20 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppData } from '../context/AppDataContext';
+import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { Alert } from '../utils/dialog';
 
 interface VisionScreenProps {
   onAddToItinerary?: () => void;
+  onGoPlanner?: () => void;
 }
 
-export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) => {
+export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, onGoPlanner }) => {
   const { theme } = useTheme();
+  const { places } = usePlaces();
+  const { plan, addPlaceToDay, sim, setSim } = useAppData();
   const [isScanning, setIsScanning] = useState(false);
   const [activeImageKey, setActiveImageKey] = useState<'miquang' | 'caurong'>('miquang');
 
@@ -51,6 +56,60 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) 
   };
 
   const currentSample = sampleImages[activeImageKey];
+
+  const handleAdd = () => {
+    const placeId = activeImageKey === 'miquang' ? 'dn01' : 'dn02';
+    const place = places.find((p) => p.id === placeId);
+    if (!place || !place.is_active) {
+      Alert.alert('Không khả dụng', 'Địa điểm này đang tạm ẩn khỏi hệ thống.');
+      return;
+    }
+    if (!plan) {
+      Alert.alert('Chưa có lịch trình', 'Hãy tạo lịch trình bằng AI trước rồi thêm địa điểm vào.', [
+        { text: 'Để sau', style: 'cancel' },
+        { text: 'Tạo lịch trình', onPress: () => onGoPlanner?.() },
+      ]);
+      return;
+    }
+    if (plan.days[0].items.some((it) => it.place_id === place.id)) {
+      Alert.alert('Đã có trong lịch', `${place.name} đã nằm trong Ngày 1.`);
+      return;
+    }
+    addPlaceToDay(0, place);
+    Alert.alert('Đã thêm', `Đã thêm ${place.name} vào Ngày 1.`, [
+      { text: 'Ở lại', style: 'cancel' },
+      { text: 'Xem lịch trình', onPress: () => onAddToItinerary?.() },
+    ]);
+  };
+
+  // ---------- TRẠNG THÁI TỪ CHỐI CAMERA ----------
+  if (sim.cameraDenied) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
+        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: theme.roseLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Ionicons name="videocam-off-outline" size={46} color={theme.rose} />
+        </View>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: theme.text }}>Chưa cấp quyền camera</Text>
+        <Text style={{ fontSize: 13, color: theme.textMuted, textAlign: 'center', lineHeight: 20, marginTop: 8 }}>
+          Vivu AI cần camera để chụp món ăn hoặc địa điểm. Bạn có thể cấp quyền trong Cài đặt, hoặc chọn ảnh có sẵn từ thư viện.
+        </Text>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.primary, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14, marginTop: 18 }}
+          onPress={() => setSim({ cameraDenied: false })}
+        >
+          <Ionicons name="camera" size={16} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>Cấp quyền camera</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14, marginTop: 10 }}
+          onPress={() => setSim({ cameraDenied: false })}
+        >
+          <Ionicons name="images-outline" size={16} color={theme.text} />
+          <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>Chọn ảnh từ thư viện</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const triggerScan = (key: 'miquang' | 'caurong') => {
     setActiveImageKey(key);
@@ -207,10 +266,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary }) 
 
               <TouchableOpacity
                 style={[styles.addBtn, { backgroundColor: theme.primary }]}
-                onPress={() => {
-                  Alert.alert('Thành công', 'Đã thêm địa điểm này vào lịch trình hôm nay!');
-                  if (onAddToItinerary) onAddToItinerary();
-                }}
+                onPress={handleAdd}
               >
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={styles.addBtnText}>Thêm</Text>

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { Alert } from '../utils/dialog';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
@@ -25,6 +25,7 @@ export const AuthModal: React.FC = () => {
     closeAuthModal,
     login,
     register,
+    setDemoRole,
   } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>(authModalInitialTab);
@@ -72,6 +73,11 @@ export const AuthModal: React.FC = () => {
     }
   };
 
+  const handleSelectDemo = (role: 'guest' | 'user' | 'admin') => {
+    setDemoRole(role);
+    closeAuthModal();
+  };
+
   return (
     <Modal
       visible={isAuthModalVisible}
@@ -111,11 +117,94 @@ export const AuthModal: React.FC = () => {
               </Text>
               <Text style={[styles.brandSub, { color: theme.textMuted }]}>
                 {mode === 'login'
-                  ? 'Đăng nhập để lưu lịch trình & đồng bộ đa thiết bị'
+                  ? 'Đăng nhập để lưu lịch trình & đồng bộ dữ liệu'
                   : mode === 'register'
-                  ? 'Tạo tài khoản mới để trải nghiệm trọn vẹn'
+                  ? 'Tạo tài khoản mới để trải nghiệm đầy đủ chức năng'
                   : 'Nhập email của bạn để đặt lại mật khẩu'}
               </Text>
+            </View>
+
+            {/* CHUYỂN ĐỔI QUYỀN NHANH (DEMO ĐỒ ÁN) - ĐƯỢC ĐẶT NỔI BẬT TẠI ĐÂY */}
+            <View
+              style={[
+                styles.quickDemoCard,
+                { backgroundColor: theme.bg, borderColor: theme.border },
+              ]}
+            >
+              <View style={styles.quickDemoHeader}>
+                <Ionicons name="flash" size={14} color={theme.amber} />
+                <Text style={[styles.quickDemoTitle, { color: theme.text }]}>
+                  Chuyển Đổi Quyền Nhanh (Demo Đồ Án)
+                </Text>
+              </View>
+              <Text style={[styles.quickDemoDesc, { color: theme.textSub }]}>
+                Bấm 1 chạm để chuyển ngay sang vai trò mong muốn khi thuyết trình:
+              </Text>
+
+              <View style={styles.quickDemoBtnRow}>
+                {/* 1. KHÁCH */}
+                <TouchableOpacity
+                  style={[
+                    styles.quickDemoBtn,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}
+                  onPress={() => handleSelectDemo('guest')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person-outline" size={14} color={theme.textMuted} />
+                  <Text style={[styles.quickDemoBtnText, { color: theme.text }]}>
+                    Khách
+                  </Text>
+                  <Text style={[styles.quickDemoBadge, { color: theme.textSub }]}>
+                    Dùng thử
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 2. USER */}
+                <TouchableOpacity
+                  style={[
+                    styles.quickDemoBtn,
+                    { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                  ]}
+                  onPress={() => handleSelectDemo('user')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person" size={14} color={theme.primaryLight} />
+                  <Text style={[styles.quickDemoBtnText, { color: theme.primaryLight }]}>
+                    Người Dùng
+                  </Text>
+                  <Text style={[styles.quickDemoBadge, { color: theme.primaryLight }]}>
+                    Đầy đủ
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 3. ADMIN */}
+                <TouchableOpacity
+                  style={[
+                    styles.quickDemoBtn,
+                    { backgroundColor: theme.roseLight, borderColor: theme.rose },
+                  ]}
+                  onPress={() => handleSelectDemo('admin')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="shield-checkmark" size={14} color={theme.rose} />
+                  <Text style={[styles.quickDemoBtnText, { color: theme.rose }]}>
+                    Admin
+                  </Text>
+                  <Text style={[styles.quickDemoBadge, { color: theme.rose }]}>
+                    Quản trị
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              <Text style={[styles.dividerText, { color: theme.textSub }]}>
+                HOẶC ĐĂNG NHẬP THƯỜNG
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
             {/* Mode Tabs (Login / Register) */}
@@ -315,46 +404,10 @@ export const AuthModal: React.FC = () => {
               )}
             </View>
 
-            {/* Quick Demo Logins */}
-            {mode === 'login' && (
-              <View style={[styles.demoBox, { borderTopColor: theme.border }]}>
-                <Text style={[styles.demoTitle, { color: theme.textSub }]}>
-                  Đăng nhập nhanh để test (Demo):
-                </Text>
-                <View style={styles.demoBtnRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.demoBtn,
-                      { backgroundColor: theme.blueLight, borderColor: theme.primary },
-                    ]}
-                    onPress={() => login('dukhach@vivuai.vn', '123456', 'user')}
-                  >
-                    <Ionicons name="person" size={13} color={theme.primaryLight} />
-                    <Text style={[styles.demoBtnText, { color: theme.primaryLight }]}>
-                      Tài khoản User
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.demoBtn,
-                      { backgroundColor: theme.roseLight, borderColor: theme.rose },
-                    ]}
-                    onPress={() => login('admin@vivuai.vn', '123456', 'admin')}
-                  >
-                    <Ionicons name="shield" size={13} color={theme.rose} />
-                    <Text style={[styles.demoBtnText, { color: theme.rose }]}>
-                      Tài khoản Admin
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
             {/* Continue as Guest */}
             <TouchableOpacity style={styles.guestBtn} onPress={closeAuthModal}>
               <Text style={[styles.guestBtnText, { color: theme.textMuted }]}>
-                Tiếp tục dùng thử với tư cách Khách →
+                Đóng cửa sổ và tiếp tục trải nghiệm →
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -394,36 +447,93 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 18,
+    marginTop: 6,
+    marginBottom: 14,
   },
   logoBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   brandTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
   },
   brandSub: {
     fontSize: 11,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 3,
     paddingHorizontal: 16,
+  },
+  quickDemoCard: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  quickDemoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  quickDemoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  quickDemoDesc: {
+    fontSize: 10,
+    marginBottom: 10,
+  },
+  quickDemoBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickDemoBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+  },
+  quickDemoBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  quickDemoBadge: {
+    fontSize: 8,
+    fontWeight: '600',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   tabSwitcher: {
     flexDirection: 'row',
     borderRadius: 14,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 11,
     alignItems: 'center',
   },
@@ -445,7 +555,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   form: {
-    gap: 12,
+    gap: 11,
   },
   inputGroup: {
     gap: 5,
@@ -460,12 +570,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 44,
+    height: 42,
     gap: 8,
   },
   input: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
   },
   forgotLink: {
     alignSelf: 'flex-end',
@@ -475,7 +585,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitBtn: {
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 4,
@@ -493,36 +603,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  demoBox: {
-    marginTop: 18,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  demoTitle: {
-    fontSize: 10,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  demoBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  demoBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 6,
-  },
-  demoBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   guestBtn: {
-    marginTop: 16,
+    marginTop: 14,
     alignItems: 'center',
     paddingVertical: 6,
   },

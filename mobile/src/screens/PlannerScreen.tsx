@@ -8,16 +8,21 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GUEST_AI_LIMIT, useAppData } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Area } from '../types';
 import { formatCurrency } from '../utils/format';
 
 interface PlannerScreenProps {
-  onPlanGenerated: (planData: any) => void;
+  onPlanGenerated: () => void;
 }
 
 export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated }) => {
   const { theme } = useTheme();
+  const { role, openAuthModal } = useAuth();
+  const { createPlan, guestUsed } = useAppData();
+  const [errorKind, setErrorKind] = useState<null | 'error' | 'limit' | 'empty'>(null);
   const [area, setArea] = useState<Area | 'both'>('both');
   const [days, setDays] = useState<number>(2);
   const [people, setPeople] = useState<number>(2);
@@ -58,6 +63,14 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
   };
 
   const handleGenerate = () => {
+    setErrorKind(null);
+
+    // Khách vãng lai hết lượt dùng thử -> chặn ngay, không cần gọi AI
+    if (role === 'guest' && guestUsed >= GUEST_AI_LIMIT) {
+      setErrorKind('limit');
+      return;
+    }
+
     setIsLoading(true);
     setLoadingTextIndex(0);
 
@@ -68,7 +81,12 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
     setTimeout(() => {
       clearInterval(interval);
       setIsLoading(false);
-      onPlanGenerated({ area, days, people, interests, budget });
+      const result = createPlan({ area, days, people, interests, budget });
+      if (result === 'ok') {
+        onPlanGenerated();
+      } else {
+        setErrorKind(result);
+      }
     }, 2200);
   };
 
@@ -352,6 +370,56 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
             </View>
           )}
 
+          {role === 'guest' && (
+            <Text style={[styles.disclaimerText, { color: theme.textSub, marginTop: 8 }]}>
+              Khách dùng thử: còn {Math.max(0, GUEST_AI_LIMIT - guestUsed)}/{GUEST_AI_LIMIT} lượt tạo lịch (không lưu).
+            </Text>
+          )}
+
+          {errorKind && (
+            <View
+              style={[
+                styles.errorCard,
+                {
+                  backgroundColor: errorKind === 'limit' ? theme.amberLight : theme.roseLight,
+                  borderColor: errorKind === 'limit' ? theme.amber : theme.rose,
+                },
+              ]}
+            >
+              <Ionicons
+                name={errorKind === 'limit' ? 'lock-closed' : 'cloud-offline'}
+                size={28}
+                color={errorKind === 'limit' ? theme.amber : theme.rose}
+              />
+              <Text style={[styles.errorTitle, { color: theme.text }]}>
+                {errorKind === 'limit'
+                  ? 'Bạn đã hết lượt dùng thử'
+                  : errorKind === 'empty'
+                  ? 'Không đủ địa điểm để lập lịch'
+                  : 'AI đang gặp sự cố'}
+              </Text>
+              <Text style={[styles.errorDesc, { color: theme.textMuted }]}>
+                {errorKind === 'limit'
+                  ? `Khách vãng lai chỉ được tạo ${GUEST_AI_LIMIT} lịch trình. Đăng nhập để tạo không giới hạn và lưu lịch trình.`
+                  : errorKind === 'empty'
+                  ? 'Khu vực bạn chọn hiện chưa có địa điểm nào đang hoạt động. Hãy thử chọn khu vực khác.'
+                  : 'Không nhận được phản hồi hợp lệ từ AI hoặc mất kết nối mạng. Vui lòng thử lại sau ít giây.'}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.errorBtn,
+                  { backgroundColor: errorKind === 'limit' ? theme.primary : theme.rose },
+                ]}
+                onPress={() => (errorKind === 'limit' ? openAuthModal('login') : handleGenerate())}
+              >
+                <Ionicons name={errorKind === 'limit' ? 'log-in-outline' : 'refresh'} size={15} color="#fff" />
+                <Text style={styles.errorBtnText}>
+                  {errorKind === 'limit' ? 'Đăng nhập ngay' : 'Thử lại'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <Text style={[styles.disclaimerText, { color: theme.textSub }]}>
             *AI chỉ chọn các địa điểm thật trong cơ sở dữ liệu Đà Nẵng & Hội An, đảm bảo tọa độ chính xác.
           </Text>
@@ -457,4 +525,9 @@ const styles = StyleSheet.create({
   },
   quoteText: { fontSize: 10, textAlign: 'center', fontStyle: 'italic' },
   disclaimerText: { fontSize: 9, textAlign: 'center', marginTop: 10, lineHeight: 14 },
+  errorCard: { marginTop: 14, padding: 16, borderRadius: 16, borderWidth: 1, alignItems: 'center', gap: 6 },
+  errorTitle: { fontSize: 14, fontWeight: '800' },
+  errorDesc: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  errorBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 6 },
+  errorBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 });

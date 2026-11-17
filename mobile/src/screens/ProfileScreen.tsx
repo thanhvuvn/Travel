@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Switch,
@@ -9,13 +9,32 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppData } from '../context/AppDataContext';
 import { useAuth, UserRole } from '../context/AuthContext';
+import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { Place } from '../types';
+import { Alert } from '../utils/dialog';
+import { formatCurrency } from '../utils/format';
 
-export const ProfileScreen: React.FC = () => {
+interface ProfileScreenProps {
+  onNavigateToAdmin?: () => void;
+  onOpenPlace?: (place: Place) => void;
+  onShowOnboarding?: () => void;
+}
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({
+  onNavigateToAdmin,
+  onOpenPlace,
+  onShowOnboarding,
+}) => {
   const { isDark, theme, setDarkMode } = useTheme();
-  const { user, role, openAuthModal, logout, setDemoRole } = useAuth();
+  const { user, role, openAuthModal, logout } = useAuth();
+  const { places } = usePlaces();
+  const { favorites, toggleFavorite, sim, setSim } = useAppData();
   const [isVietnamese, setIsVietnamese] = useState(true);
+
+  const favoritePlaces = places.filter((p) => favorites.includes(p.id));
 
   const roleLabels: Record<UserRole, { name: string; badge: string; color: string }> = {
     guest: { name: 'Khách Vãng Lai', badge: 'Dùng thử', color: theme.textMuted },
@@ -61,6 +80,29 @@ export const ProfileScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* ADMIN SHORTCUT BUTTON */}
+        {role === 'admin' && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.rose,
+              paddingVertical: 12,
+              borderRadius: 14,
+              marginTop: 10,
+              gap: 8,
+            }}
+            onPress={onNavigateToAdmin}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="shield-checkmark" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>
+              Mở Trang Quản Trị Hệ Thống (Admin Portal)
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* AUTH ACTION BUTTONS (LOGIN / REGISTER / LOGOUT) */}
         {!user ? (
@@ -161,44 +203,93 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* DEMO ROLE SWITCHER (FOR COURSE DEMO) */}
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Chuyển Đổi Quyền Nhanh (Demo Đồ Án)
-          </Text>
-          <Text style={[styles.sectionDesc, { color: theme.textSub }]}>
-            Chuyển nhanh giữa 3 role (Khách, Người dùng, Admin) khi thuyết trình:
-          </Text>
-          <View style={styles.roleToggleRow}>
-            {(['guest', 'user', 'admin'] as UserRole[]).map((r) => {
-              const isSelected = role === r;
-              return (
-                <TouchableOpacity
-                  key={r}
-                  style={[
-                    styles.roleBtn,
-                    { backgroundColor: theme.bg, borderColor: theme.border },
-                    isSelected && { backgroundColor: theme.primary, borderColor: theme.primary },
-                  ]}
-                  onPress={() => setDemoRole(r)}
-                >
-                  <Text
-                    style={[
-                      styles.roleBtnText,
-                      { color: isSelected ? '#fff' : theme.textMuted },
-                    ]}
-                  >
-                    {r === 'guest' ? 'Khách' : r === 'user' ? 'Người Dùng' : 'Admin'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+        {/* ĐỊA ĐIỂM YÊU THÍCH */}
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
+              ❤️ Địa điểm yêu thích
+            </Text>
+            {user && (
+              <Text style={{ fontSize: 11, color: theme.textMuted }}>{favoritePlaces.length} địa điểm</Text>
+            )}
           </View>
+
+          {!user ? (
+            <View style={{ alignItems: 'center', paddingVertical: 14, gap: 6 }}>
+              <Ionicons name="heart-outline" size={32} color={theme.textSub} />
+              <Text style={{ fontSize: 12, color: theme.textMuted, textAlign: 'center', lineHeight: 18 }}>
+                Đăng nhập để lưu và xem lại các địa điểm bạn yêu thích.
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: theme.primary, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 12, marginTop: 4 }}
+                onPress={() => openAuthModal('login')}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Đăng nhập</Text>
+              </TouchableOpacity>
+            </View>
+          ) : favoritePlaces.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 14, gap: 6 }}>
+              <Ionicons name="heart-dislike-outline" size={32} color={theme.textSub} />
+              <Text style={{ fontSize: 12, color: theme.textMuted, textAlign: 'center', lineHeight: 18 }}>
+                Bạn chưa yêu thích địa điểm nào. Bấm biểu tượng ♡ ở thẻ địa điểm để lưu lại.
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {favoritePlaces.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderRadius: 12, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.border }}
+                  activeOpacity={0.8}
+                  onPress={() => onOpenPlace?.(p)}
+                >
+                  <Image source={{ uri: p.image }} style={{ width: 48, height: 48, borderRadius: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text }} numberOfLines={1}>{p.name}</Text>
+                    <Text style={{ fontSize: 10, color: theme.textSub, marginTop: 2 }}>
+                      {p.area === 'danang' ? 'Đà Nẵng' : 'Hội An'} • {formatCurrency(p.avg_cost)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => toggleFavorite(p.id)} hitSlop={8}>
+                    <Ionicons name="heart" size={20} color={theme.rose} />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* MÔ PHỎNG TRẠNG THÁI (DEMO) */}
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>🧪 Mô phỏng trạng thái lỗi (Demo)</Text>
+          <Text style={[styles.sectionDesc, { color: theme.textSub }]}>
+            Bật để trình diễn cách ứng dụng xử lý lỗi, không cần làm hỏng thật.
+          </Text>
+          {([
+            { key: 'aiError', label: 'AI lập lịch bị lỗi', icon: 'cloud-offline-outline' },
+            { key: 'gpsDenied', label: 'Từ chối quyền GPS', icon: 'location-outline' },
+            { key: 'cameraDenied', label: 'Từ chối quyền Camera', icon: 'videocam-off-outline' },
+          ] as const).map((row) => (
+            <View key={row.key} style={[styles.settingRow, { borderBottomColor: theme.border }]}>
+              <View style={styles.settingInfo}>
+                <Ionicons name={row.icon} size={18} color={theme.text} />
+                <Text style={[styles.settingLabel, { color: theme.text }]}>{row.label}</Text>
+              </View>
+              <Switch
+                value={sim[row.key]}
+                onValueChange={(v) => setSim({ [row.key]: v })}
+                trackColor={{ false: '#CBD5E1', true: theme.rose }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          ))}
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginTop: 8, borderRadius: 10, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.bg }}
+            onPress={onShowOnboarding}
+          >
+            <Ionicons name="play-circle-outline" size={16} color={theme.primaryLight} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primaryLight }}>Xem lại hướng dẫn giới thiệu</Text>
+          </TouchableOpacity>
         </View>
 
         {/* PERMISSIONS PREVIEW */}
@@ -208,9 +299,16 @@ export const ProfileScreen: React.FC = () => {
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Quyền hạn hiện tại ({roleLabels[role].name}):
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
+              Quyền hạn hiện tại:
+            </Text>
+            <View style={[styles.roleBadge, { backgroundColor: theme.blueLight, marginTop: 0 }]}>
+              <Text style={[styles.roleBadgeText, { color: roleLabels[role].color }]}>
+                {roleLabels[role].name}
+              </Text>
+            </View>
+          </View>
           <View style={styles.permList}>
             <View style={styles.permRow}>
               <Ionicons name="checkmark-circle" size={16} color={theme.emerald} />
