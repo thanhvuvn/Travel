@@ -13,6 +13,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth, UserRole } from '../context/AuthContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { SurvivalKitSection } from '../components/SurvivalKitSection';
 import { Place } from '../types';
 import { Alert } from '../utils/dialog';
 import { formatCurrency } from '../utils/format';
@@ -258,6 +259,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </View>
           )}
         </View>
+
+        {/* CẨM NANG BỎ TÚI & HOTLINE DU LỊCH */}
+        <SurvivalKitSection />
 
         {/* MÔ PHỎNG TRẠNG THÁI (DEMO) */}
         <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>

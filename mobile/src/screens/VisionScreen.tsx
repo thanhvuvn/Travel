@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { FadeInView, LaserSweep, PulseView, ScalePress } from '../components/AnimatedUI';
 import { MOCK_SPECIALTIES, VisionSampleKey } from '../data/mockSpecialties';
 import { Alert } from '../utils/dialog';
 
@@ -234,7 +235,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.viewfinderContainer}>
           <Image source={{ uri: currentSample.url }} style={styles.previewImage} />
-          <View style={[styles.scannerLaser, { backgroundColor: theme.accent }]} />
+          <LaserSweep color={theme.accent} height={216} fast={isScanning} />
 
           <View style={[styles.corner, styles.cornerTL, { borderColor: theme.accent }]} />
           <View style={[styles.corner, styles.cornerTR, { borderColor: theme.accent }]} />
@@ -283,7 +284,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
               const item = sampleImages[key];
               const isSelected = activeVisionSample === key;
               return (
-                <TouchableOpacity
+                <ScalePress
                   key={key}
                   style={[
                     styles.sampleChipBtn,
@@ -304,88 +305,109 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
                   >
                     {item.shortLabel}
                   </Text>
-                </TouchableOpacity>
+                </ScalePress>
               );
             })}
           </ScrollView>
         </View>
 
-        <View
-          style={[
-            styles.resultCard,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <View style={styles.resultHeader}>
-            <View style={[styles.categoryBadge, { backgroundColor: theme.blueLight }]}>
-              <Text style={[styles.categoryBadgeText, { color: theme.primaryLight }]}>
-                {currentSample.category}
-              </Text>
+        {isScanning ? (
+          <PulseView
+            style={[
+              styles.resultCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ width: 120, height: 18, borderRadius: 6, backgroundColor: theme.border }} />
+              <View style={{ width: 90, height: 18, borderRadius: 6, backgroundColor: theme.border }} />
             </View>
-            <View style={styles.confidenceBadge}>
-              <Ionicons name="flash" size={12} color={theme.emerald} />
-              <Text style={[styles.confidenceText, { color: theme.emerald }]}>
-                Độ tin cậy {currentSample.confidence}%
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.resultTitle, { color: theme.text }]}>{currentSample.title}</Text>
-          <Text style={[styles.resultDesc, { color: theme.textMuted }]}>{currentSample.desc}</Text>
-
-          {currentSample.howToEat && (
-            <View
-              style={[
-                styles.howToEatBox,
-                { backgroundColor: theme.amberLight, borderColor: theme.amber },
-              ]}
-            >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: theme.secondary }}>
-                🍴 Bí quyết thưởng thức đúng điệu:
-              </Text>
-              <Text style={{ fontSize: 10, color: theme.text, lineHeight: 15, marginTop: 2 }}>
-                {currentSample.howToEat}
-              </Text>
-            </View>
-          )}
-
-          <View style={[styles.matchedSection, { borderTopColor: theme.border }]}>
-            <Text style={[styles.matchedLabel, { color: theme.textSub }]}>
-              Địa điểm chuẩn vị trong hệ thống:
-            </Text>
-            <View
-              style={[
-                styles.matchedBox,
-                { backgroundColor: theme.bg, borderColor: theme.border },
-              ]}
-            >
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={[styles.matchedName, { color: theme.text }]}>
-                  {currentSample.matchedPlace.name}
+            <View style={{ width: '75%', height: 20, borderRadius: 6, backgroundColor: theme.border, marginBottom: 10 }} />
+            <View style={{ width: '100%', height: 12, borderRadius: 6, backgroundColor: theme.border, marginBottom: 6 }} />
+            <View style={{ width: '90%', height: 12, borderRadius: 6, backgroundColor: theme.border, marginBottom: 14 }} />
+            <View style={{ width: '100%', height: 58, borderRadius: 12, backgroundColor: theme.border }} />
+          </PulseView>
+        ) : (
+          <FadeInView
+            triggerKey={activeVisionSample}
+            duration={300}
+            slideOffset={12}
+            style={[
+              styles.resultCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <View style={styles.resultHeader}>
+              <View style={[styles.categoryBadge, { backgroundColor: theme.blueLight }]}>
+                <Text style={[styles.categoryBadgeText, { color: theme.primaryLight }]}>
+                  {currentSample.category}
                 </Text>
-                <Text style={[styles.matchedAddress, { color: theme.textSub }]}>
-                  {currentSample.matchedPlace.address}
-                </Text>
-                <View style={styles.matchedMeta}>
-                  <Text style={[styles.matchedCost, { color: theme.emerald }]}>
-                    {currentSample.matchedPlace.cost}
-                  </Text>
-                  <Text style={[styles.matchedDistance, { color: theme.textMuted }]}>
-                    • Cách bạn {currentSample.matchedPlace.distance}
-                  </Text>
-                </View>
               </View>
-
-              <TouchableOpacity
-                style={[styles.addBtn, { backgroundColor: theme.primary }]}
-                onPress={handleAdd}
-              >
-                <Ionicons name="add" size={16} color="#fff" />
-                <Text style={styles.addBtnText}>Thêm</Text>
-              </TouchableOpacity>
+              <View style={styles.confidenceBadge}>
+                <Ionicons name="flash" size={12} color={theme.emerald} />
+                <Text style={[styles.confidenceText, { color: theme.emerald }]}>
+                  Độ tin cậy {currentSample.confidence}%
+                </Text>
+              </View>
             </View>
-          </View>
-        </View>
+
+            <Text style={[styles.resultTitle, { color: theme.text }]}>{currentSample.title}</Text>
+            <Text style={[styles.resultDesc, { color: theme.textMuted }]}>{currentSample.desc}</Text>
+
+            {currentSample.howToEat && (
+              <View
+                style={[
+                  styles.howToEatBox,
+                  { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                ]}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.secondary }}>
+                  🍴 Bí quyết thưởng thức đúng điệu:
+                </Text>
+                <Text style={{ fontSize: 10, color: theme.text, lineHeight: 15, marginTop: 2 }}>
+                  {currentSample.howToEat}
+                </Text>
+              </View>
+            )}
+
+            <View style={[styles.matchedSection, { borderTopColor: theme.border }]}>
+              <Text style={[styles.matchedLabel, { color: theme.textSub }]}>
+                Địa điểm chuẩn vị trong hệ thống:
+              </Text>
+              <View
+                style={[
+                  styles.matchedBox,
+                  { backgroundColor: theme.bg, borderColor: theme.border },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={[styles.matchedName, { color: theme.text }]}>
+                    {currentSample.matchedPlace.name}
+                  </Text>
+                  <Text style={[styles.matchedAddress, { color: theme.textSub }]}>
+                    {currentSample.matchedPlace.address}
+                  </Text>
+                  <View style={styles.matchedMeta}>
+                    <Text style={[styles.matchedCost, { color: theme.emerald }]}>
+                      {currentSample.matchedPlace.cost}
+                    </Text>
+                    <Text style={[styles.matchedDistance, { color: theme.textMuted }]}>
+                      • Cách bạn {currentSample.matchedPlace.distance}
+                    </Text>
+                  </View>
+                </View>
+
+                <ScalePress
+                  style={[styles.addBtn, { backgroundColor: theme.primary }]}
+                  onPress={handleAdd}
+                >
+                  <Ionicons name="add" size={16} color="#fff" />
+                  <Text style={styles.addBtnText}>Thêm</Text>
+                </ScalePress>
+              </View>
+            </View>
+          </FadeInView>
+        )}
       </ScrollView>
     </View>
   );

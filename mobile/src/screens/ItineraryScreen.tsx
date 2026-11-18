@@ -16,6 +16,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { AccordionBox, FadeInView, ScalePress } from '../components/AnimatedUI';
 import { ItineraryItem, Place } from '../types';
 import { Alert } from '../utils/dialog';
 import { formatCurrency, formatShortMoney } from '../utils/format';
@@ -67,14 +68,13 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         <Text style={[styles.emptyDesc, { color: theme.textMuted }]}>
           Hãy để Vivu AI lập lịch trình theo từng ngày, có giờ giấc, ngân sách và bản đồ chỉ trong vài giây.
         </Text>
-        <TouchableOpacity
+        <ScalePress
           style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
           onPress={onNavigateToPlanner}
-          activeOpacity={0.85}
         >
           <Ionicons name="sparkles" size={16} color="#fff" />
           <Text style={styles.emptyBtnText}>Tạo lịch trình bằng AI</Text>
-        </TouchableOpacity>
+        </ScalePress>
       </View>
     );
   }
@@ -307,27 +307,21 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* TÍNH NĂNG 4: TRỢ LÝ KIỂM TRA LỊCH TRÌNH BẤT HỢP LÝ */}
+        {/* TÍNH NĂNG 4: TRỢ LÝ KIỂM TRA LỊCH TRÌNH BẤT HỢP LÝ (ACCORDION #12) */}
         {day.items.length > 0 && (
           warnings.length > 0 ? (
-            <View
-              style={[
-                styles.inspectorCard,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor: theme.amber,
-                },
-              ]}
-            >
-              <View style={styles.inspectorHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                  <Ionicons name="alert-circle" size={16} color={theme.amber} />
-                  <Text style={[styles.inspectorTitle, { color: theme.text }]}>
-                    Phát hiện {warnings.length} điểm cần lưu ý trong lịch trình
-                  </Text>
-                </View>
-                {hasHoursConflict && (
-                  <TouchableOpacity
+            <AccordionBox
+              title={`Phát hiện ${warnings.length} điểm cần lưu ý trong lịch trình`}
+              subtitle="Nhấn để mở rộng chi tiết cảnh báo"
+              icon="alert-circle"
+              accentColor={theme.amber}
+              bgColor={theme.surface}
+              borderColor={theme.amber}
+              textColor={theme.text}
+              defaultExpanded={true}
+              rightAction={
+                hasHoursConflict ? (
+                  <ScalePress
                     style={[styles.autoFixBtn, { backgroundColor: theme.amber }]}
                     onPress={() => {
                       optimizeDay(dayIndex);
@@ -339,11 +333,11 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
                   >
                     <Ionicons name="flash" size={11} color="#fff" />
                     <Text style={styles.autoFixBtnText}>Tự động sửa giờ</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={{ gap: 6, marginTop: 6 }}>
+                  </ScalePress>
+                ) : undefined
+              }
+            >
+              <View style={{ gap: 6 }}>
                 {warnings.map((w) => (
                   <View
                     key={w.id}
@@ -390,9 +384,9 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
                   </View>
                 ))}
               </View>
-            </View>
+            </AccordionBox>
           ) : (
-            <View
+            <FadeInView
               style={[
                 styles.validScheduleBar,
                 { backgroundColor: theme.emeraldLight, borderColor: theme.emerald },
@@ -402,7 +396,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
               <Text style={[styles.validScheduleText, { color: theme.emerald }]}>
                 Lịch trình hợp lý: Giờ mở cửa, khoảng cách và ngân sách đều tối ưu.
               </Text>
-            </View>
+            </FadeInView>
           )
         )}
 
@@ -422,7 +416,13 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
             const isFar = !!travelOpts && travelOpts.roadKm >= 12;
 
             return (
-              <View key={item.id}>
+              <FadeInView
+                key={item.id}
+                triggerKey={`${day.day}-${day.items.length}`}
+                delay={index * 65}
+                duration={280}
+                slideOffset={12}
+              >
                 {/* Dải nối lộ trình giữa 2 điểm: Grab / xe máy */}
                 {travelOpts && (
                   <View
@@ -590,7 +590,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
                     </View>
                   </View>
                 </View>
-              </View>
+              </FadeInView>
             );
           })
         )}
@@ -598,11 +598,11 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
 
       {/* FOOTER */}
       <View style={[styles.footerBar, { backgroundColor: theme.navBg, borderTopColor: theme.border }]}>
-        <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave}>
+        <ScalePress style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave}>
           <Ionicons name="bookmark" size={16} color="#fff" />
           <Text style={styles.saveBtnText}>Lưu lịch trình</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </ScalePress>
+        <ScalePress
           style={[
             styles.shareBtn,
             { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
@@ -611,8 +611,8 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         >
           <Ionicons name="share-social" size={16} color={theme.primaryLight} />
           <Text style={[styles.shareBtnText, { color: theme.primaryLight }]}>Chia sẻ</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </ScalePress>
+        <ScalePress
           style={[styles.iconBtn, { backgroundColor: theme.roseLight, borderColor: theme.rose }]}
           onPress={() =>
             Alert.alert('Xóa lịch trình', 'Xóa toàn bộ lịch trình hiện tại?', [
@@ -622,7 +622,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           }
         >
           <Ionicons name="trash-outline" size={18} color={theme.rose} />
-        </TouchableOpacity>
+        </ScalePress>
       </View>
 
       {/* MODAL THÊM ĐIỂM */}

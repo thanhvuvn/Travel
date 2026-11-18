@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Image,
   Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { FadeInView, ScalePress } from '../components/AnimatedUI';
 import { Area, Category, Place, WeatherCondition } from '../types';
 import { Alert } from '../utils/dialog';
 import { calculateHaversineDistance, formatDistance, MOCK_USER_LOCATION } from '../utils/distance';
@@ -54,6 +56,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [selectedDish, setSelectedDish] = useState<SpecialtyDish | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 650);
+  };
 
   const activeWeatherArea: Area = selectedArea === 'hoian' ? 'hoian' : 'danang';
   const currentWeather = MOCK_WEATHER_DATA[activeWeatherArea][weatherCondition];
@@ -110,7 +120,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
         {/* HEADER */}
         <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
           <View style={styles.headerTop}>
@@ -319,14 +340,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               Để Vivu AI sắp xếp trọn vẹn trong 5 giây
             </Text>
           </View>
-          <TouchableOpacity
+          <ScalePress
             style={[styles.aiBannerButton, { backgroundColor: theme.secondary }]}
             onPress={onNavigateToPlanner}
-            activeOpacity={0.8}
           >
             <Text style={styles.aiBannerButtonText}>Tạo Ngay</Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
-          </TouchableOpacity>
+          </ScalePress>
         </View>
 
         {/* BẢN ĐỒ ẨM THỰC XỨ QUẢNG (FOOD TRAIL NỐI VỚI VISION AI) */}
@@ -357,13 +377,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {MOCK_SPECIALTIES.filter(
               (d) => selectedArea === 'all' || d.area === selectedArea
             ).map((dish) => (
-              <TouchableOpacity
+              <ScalePress
                 key={dish.id}
                 style={[
                   styles.foodTrailCard,
                   { backgroundColor: theme.surface, borderColor: theme.border },
                 ]}
-                activeOpacity={0.85}
                 onPress={() => setSelectedDish(dish)}
               >
                 <View style={styles.foodTrailImgWrap}>
@@ -405,7 +424,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </ScalePress>
             ))}
           </ScrollView>
         </View>
@@ -464,11 +483,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {filteredPlaces.map((place) => {
               const fav = isFavorite(place.id);
               return (
-                <TouchableOpacity
+                <ScalePress
                   key={place.id}
                   style={[styles.placeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  activeOpacity={0.85}
                   onPress={() => onOpenPlace(place)}
+                  scaleTo={0.97}
                 >
                   <View style={styles.imageWrapper}>
                     <Image source={{ uri: place.image }} style={styles.placeImage} />
@@ -508,7 +527,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       <Text style={[styles.placeHours, { color: theme.textSub }]}>{place.open_hours.split(' ')[0]}</Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </ScalePress>
               );
             })}
           </View>

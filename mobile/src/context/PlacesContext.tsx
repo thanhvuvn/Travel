@@ -40,6 +40,7 @@ interface PlacesContextValue {
   addPlace: (place: Omit<Place, 'id' | 'rating' | 'review_count'>) => void;
   updatePlace: (id: string, updated: Partial<Place>) => void;
   deletePlace: (id: string) => void;
+  resetPlacesToDefault: () => void;
   toggleUserLock: (userId: string) => void;
   recordAICall: (success: boolean) => void;
   addReview: (placeId: string, userName: string, rating: number, content: string) => void;
@@ -72,6 +73,7 @@ const PlacesContext = createContext<PlacesContextValue>({
   addPlace: noop,
   updatePlace: noop,
   deletePlace: noop,
+  resetPlacesToDefault: noop,
   toggleUserLock: noop,
   recordAICall: noop,
   addReview: noop,
@@ -166,6 +168,8 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deletePlace = (id: string) => setPlaces((prev) => prev.filter((p) => p.id !== id));
 
+  const resetPlacesToDefault = () => setPlaces(MOCK_PLACES);
+
   const toggleUserLock = (userId: string) =>
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_locked: !u.is_locked } : u)));
 
@@ -218,6 +222,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addPlace,
         updatePlace,
         deletePlace,
+        resetPlacesToDefault,
         toggleUserLock,
         recordAICall,
         addReview,

@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GUEST_AI_LIMIT, useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { FadeInView, PulseView, ScalePress } from '../components/AnimatedUI';
 import { Area, WeatherCondition } from '../types';
 import { formatCurrency } from '../utils/format';
 import { MOCK_TRAVEL_EVENTS } from '../data/mockEvents';
@@ -453,12 +454,12 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
         </View>
 
         {/* GENERATE BUTTON */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
+        <FadeInView delay={120} style={styles.actionSection}>
+          <ScalePress
             style={[styles.generateButton, { backgroundColor: theme.primary }]}
             onPress={handleGenerate}
             disabled={isLoading}
-            activeOpacity={0.8}
+            scaleTo={0.96}
           >
             {isLoading ? (
               <View style={styles.loadingWrap}>
@@ -471,19 +472,42 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
                 <Text style={styles.generateButtonText}>Vivu AI, Tạo Lịch Trình Ngay!</Text>
               </>
             )}
-          </TouchableOpacity>
+          </ScalePress>
 
           {isLoading && (
-            <View
-              style={[
-                styles.quoteCard,
-                { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
-              ]}
-            >
-              <Text style={[styles.quoteText, { color: theme.primaryLight }]}>
-                {loadingQuotes[loadingTextIndex]}
-              </Text>
-            </View>
+            <FadeInView duration={220} slideOffset={8}>
+              <View
+                style={[
+                  styles.quoteCard,
+                  { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                ]}
+              >
+                <Text style={[styles.quoteText, { color: theme.primaryLight }]}>
+                  {loadingQuotes[loadingTextIndex]}
+                </Text>
+              </View>
+
+              <PulseView
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 14,
+                  backgroundColor: theme.surface,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  gap: 8,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: theme.blueLight }} />
+                  <View style={{ flex: 1, gap: 5 }}>
+                    <View style={{ width: '65%', height: 10, borderRadius: 5, backgroundColor: theme.border }} />
+                    <View style={{ width: '40%', height: 8, borderRadius: 4, backgroundColor: theme.border }} />
+                  </View>
+                </View>
+                <View style={{ width: '100%', height: 8, borderRadius: 4, backgroundColor: theme.border }} />
+              </PulseView>
+            </FadeInView>
           )}
 
           {role === 'guest' && (
@@ -539,7 +563,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           <Text style={[styles.disclaimerText, { color: theme.textSub }]}>
             *AI chỉ chọn các địa điểm thật trong cơ sở dữ liệu Đà Nẵng & Hội An, đảm bảo tọa độ chính xác.
           </Text>
-        </View>
+        </FadeInView>
       </ScrollView>
     </View>
   );

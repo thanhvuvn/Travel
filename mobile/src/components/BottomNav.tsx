@@ -1,13 +1,87 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { MainTab } from '../types';
+
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 interface BottomNavProps {
   currentTab: MainTab;
   onSelectTab: (tab: MainTab) => void;
 }
+
+const NavTabItem: React.FC<{
+  tab: { key: MainTab; label: string; icon: keyof typeof Ionicons.glyphMap };
+  isActive: boolean;
+  onPress: () => void;
+}> = ({ tab, isActive, onPress }) => {
+  const { theme } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.15,
+          duration: 130,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 140,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]).start();
+    }
+  }, [isActive, scaleAnim]);
+
+  return (
+    <Pressable
+      style={styles.tabButton}
+      onPress={onPress}
+      onPressIn={() => {
+        Animated.spring(scaleAnim, {
+          toValue: 0.9,
+          useNativeDriver: USE_NATIVE_DRIVER,
+          speed: 35,
+        }).start();
+      }}
+      onPressOut={() => {
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 130,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }).start();
+      }}
+    >
+      <Animated.View
+        style={[
+          styles.iconWrapper,
+          isActive && { backgroundColor: theme.blueLight },
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        <Ionicons
+          name={tab.icon}
+          size={22}
+          color={isActive ? theme.primary : theme.textMuted}
+        />
+      </Animated.View>
+      <Text
+        style={[
+          styles.tabLabel,
+          { color: isActive ? theme.primaryLight : theme.textMuted },
+          isActive && styles.activeTabLabel,
+        ]}
+      >
+        {tab.label}
+      </Text>
+    </Pressable>
+  );
+};
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
   const { theme } = useTheme();
@@ -28,39 +102,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         { backgroundColor: theme.navBg, borderTopColor: theme.border },
       ]}
     >
-      {tabs.map((tab) => {
-        const isActive = currentTab === tab.key;
-        return (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tabButton}
-            onPress={() => onSelectTab(tab.key)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.iconWrapper,
-                isActive && { backgroundColor: theme.blueLight },
-              ]}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={22}
-                color={isActive ? theme.primary : theme.textMuted}
-              />
-            </View>
-            <Text
-              style={[
-                styles.tabLabel,
-                { color: isActive ? theme.primaryLight : theme.textMuted },
-                isActive && styles.activeTabLabel,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {tabs.map((tab) => (
+        <NavTabItem
+          key={tab.key}
+          tab={tab}
+          isActive={currentTab === tab.key}
+          onPress={() => onSelectTab(tab.key)}
+        />
+      ))}
     </View>
   );
 };

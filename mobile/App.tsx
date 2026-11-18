@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PlacesProvider } from './src/context/PlacesContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { BottomNav } from './src/components/BottomNav';
+import { FadeInView } from './src/components/AnimatedUI';
 import { AdminScreen } from './src/screens/AdminScreen';
 import { AuthModal } from './src/screens/AuthModal';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -81,17 +82,27 @@ function MainApp() {
         )}
 
         {detailPlace ? (
-          <View style={styles.contentContainer}>
+          <FadeInView
+            triggerKey={`detail-${detailPlace.id}`}
+            duration={260}
+            slideOffset={14}
+            style={styles.contentContainer}
+          >
             <PlaceDetailScreen
               place={detailPlace}
               onBack={() => setDetailPlace(null)}
               onGoPlanner={() => goTab('planner')}
               onGoItinerary={() => goTab('itinerary')}
             />
-          </View>
+          </FadeInView>
         ) : (
           <>
-            <View style={styles.contentContainer}>
+            <FadeInView
+              triggerKey={`tab-${currentTab}`}
+              duration={240}
+              slideOffset={10}
+              style={styles.contentContainer}
+            >
               {currentTab === 'home' && (
                 <HomeScreen
                   onNavigateToPlanner={() => goTab('planner')}
@@ -113,7 +124,7 @@ function MainApp() {
                   onShowOnboarding={() => setShowOnboarding(true)}
                 />
               )}
-            </View>
+            </FadeInView>
             <BottomNav currentTab={currentTab} onSelectTab={goTab} />
           </>
         )}

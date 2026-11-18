@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import {
   Image,
   Modal,
+  Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -37,6 +39,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     addPlace,
     updatePlace,
     deletePlace,
+    resetPlacesToDefault,
     toggleUserLock,
     reviews,
     setReviewStatus,
@@ -70,6 +73,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   const [activeTab, setActiveTab] = useState<AdminTab>('places');
   const [filterArea, setFilterArea] = useState<Area | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sortBy, setSortBy] = useState<'default' | 'rating_desc' | 'cost_asc' | 'cost_desc' | 'name_asc'>('default');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal thêm / sửa địa điểm
@@ -178,17 +182,81 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     );
   };
 
-  // Lọc địa điểm
-  const filteredPlaces = places.filter((p) => {
-    const matchArea = filterArea === 'all' || p.area === filterArea;
-    const matchStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' ? p.is_active : !p.is_active);
-    const matchSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchArea && matchStatus && matchSearch;
-  });
+  // Lọc và sắp xếp địa điểm
+  const filteredPlaces = places
+    .filter((p) => {
+      const matchArea = filterArea === 'all' || p.area === filterArea;
+      const matchStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' ? p.is_active : !p.is_active);
+      const matchSearch =
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchArea && matchStatus && matchSearch;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'rating_desc') return b.rating - a.rating;
+      if (sortBy === 'cost_asc') return a.avg_cost - b.avg_cost;
+      if (sortBy === 'cost_desc') return b.avg_cost - a.avg_cost;
+      if (sortBy === 'name_asc') return a.name.localeCompare(b.name, 'vi');
+      return 0;
+    });
+
+  const handleResetDemoData = () => {
+    Alert.alert(
+      'Khôi phục dữ liệu mẫu gốc',
+      'Thao tác này sẽ đưa toàn bộ danh sách địa điểm về trạng thái chuẩn ban đầu. Bạn chắc chắn muốn tiếp tục?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Khôi phục ngay',
+          onPress: () => {
+            resetPlacesToDefault();
+            Alert.alert('Thành công', 'Đã khôi phục toàn bộ dữ liệu địa điểm gốc!');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExportCSV = async () => {
+    const header = 'ID,Ten dia diem,Khu vuc,Danh muc,Chi phi (VND),Danh gia,Gio mo cua,Trang thai AI';
+    const rows = filteredPlaces.map((p) => {
+      const areaLabel = p.area === 'danang' ? 'Da Nang' : 'Hoi An';
+      const statusLabel = p.is_active ? 'Dang bat' : 'Tam an';
+      const safeName = `"${p.name.replace(/"/g, '""')}"`;
+      const safeHours = `"${p.open_hours.replace(/"/g, '""')}"`;
+      return `${p.id},${safeName},${areaLabel},${p.category},${p.avg_cost},${p.rating},${safeHours},${statusLabel}`;
+    });
+    const csvContent = '\uFEFF' + [header, ...rows].join('\n');
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      try {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `vivu_places_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Xuất Excel / CSV thành công', `Đã tải xuống ${filteredPlaces.length} địa điểm.`);
+        return;
+      } catch {
+        // fallback below
+      }
+    }
+
+    try {
+      await Share.share({
+        title: 'Báo cáo Địa điểm Vivu AI (CSV)',
+        message: csvContent,
+      });
+    } catch {
+      Alert.alert('Thông báo', 'Không thể xuất file trên thiết bị này.');
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -432,6 +500,79 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+
+              {/* Sắp xếp nhanh */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 6, marginTop: 8 }}
+              >
+                {(
+                  [
+                    { key: 'default', label: 'Mặc định' },
+                    { key: 'rating_desc', label: '★ Đánh giá cao' },
+                    { key: 'cost_asc', label: 'Giá tăng dần' },
+                    { key: 'cost_desc', label: 'Giá giảm dần' },
+                    { key: 'name_asc', label: 'Tên A → Z' },
+                  ] as const
+                ).map((opt) => {
+                  const active = sortBy === opt.key;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[
+                        styles.filterPill,
+                        { backgroundColor: theme.bg, borderColor: theme.border },
+                        active && {
+                          backgroundColor: theme.secondary,
+                          borderColor: theme.secondary,
+                        },
+                      ]}
+                      onPress={() => setSortBy(opt.key)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterPillText,
+                          { color: active ? '#fff' : theme.textMuted },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Thanh tiện ích quản trị: Xuất CSV & Khôi phục mẫu gốc */}
+              <View style={styles.adminUtilsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.adminUtilBtn,
+                    { backgroundColor: theme.emeraldLight, borderColor: theme.emerald },
+                  ]}
+                  onPress={handleExportCSV}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="download-outline" size={14} color={theme.emerald} />
+                  <Text style={[styles.adminUtilBtnText, { color: theme.emerald }]}>
+                    Xuất Excel / CSV ({filteredPlaces.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.adminUtilBtn,
+                    { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                  ]}
+                  onPress={handleResetDemoData}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh-outline" size={14} color={theme.secondary} />
+                  <Text style={[styles.adminUtilBtnText, { color: theme.secondary }]}>
+                    Khôi phục mẫu gốc
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -1762,4 +1903,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   savePlaceBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  adminUtilsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  adminUtilBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 5,
+  },
+  adminUtilBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
 });
