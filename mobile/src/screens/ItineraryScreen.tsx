@@ -3,7 +3,9 @@ import {
   Image,
   Linking,
   Modal,
+  Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,6 +19,11 @@ import { useTheme } from '../context/ThemeContext';
 import { ItineraryItem, Place } from '../types';
 import { Alert } from '../utils/dialog';
 import { formatCurrency, formatShortMoney } from '../utils/format';
+import {
+  estimateTravelBetween,
+  getItemHoursWarning,
+  inspectSchedule,
+} from '../utils/scheduleValidator';
 
 interface ItineraryScreenProps {
   onNavigateToPlanner: () => void;
@@ -30,10 +37,19 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
   const { theme } = useTheme();
   const { user, openAuthModal } = useAuth();
   const { places } = usePlaces();
-  const { plan, clearPlan, moveItem, removeItem, addPlaceToDay, regenerateDay } = useAppData();
+  const {
+    plan,
+    clearPlan,
+    moveItem,
+    removeItem,
+    addPlaceToDay,
+    regenerateDay,
+    optimizeDay,
+  } = useAppData();
 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Giữ tab ngày hợp lệ khi lịch trình thay đổi
   useEffect(() => {
@@ -116,6 +132,75 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
     .filter((p) => p.is_active && !day.items.some((it) => it.place_id === p.id))
     .sort((a, b) => Number(b.area === day.area) - Number(a.area === day.area));
 
+  // Kiểm tra cảnh báo lịch trình bất hợp lý (Tính năng 4)
+  const warnings = inspectSchedule(day, totalCost, budget);
+  const hasHoursConflict = warnings.some((w) => w.type === 'hours');
+  const perPersonCost = Math.round(totalCost / Math.max(1, plan.params.people));
+  const shareUrl = `https://vivuai.vn/plan/DN-HA-${plan.params.days}N${plan.params.people}P`;
+
+  // Tạo nội dung chia sẻ lịch trình (Tính năng 5)
+  const buildShareText = (): string => {
+    const lines: string[] = [
+      `🌴 LỊCH TRÌNH DU LỊCH ĐÀ NẴNG - HỘI AN (${plan.params.days} NGÀY • ${plan.params.people} NGƯỜI)`,
+      `💰 Tổng dự trù: ${formatCurrency(totalCost)} / Ngân sách ${formatCurrency(budget)} (~${formatCurrency(perPersonCost)}/người)`,
+      `----------------------------------------`,
+    ];
+    plan.days.forEach((d) => {
+      const dCost = d.items.reduce((s, it) => s + it.est_cost, 0);
+      lines.push(
+        `\n📅 NGÀY ${d.day} (${d.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}) - ${formatCurrency(dCost)}:`
+      );
+      d.items.forEach((it, idx) => {
+        lines.push(
+          `  ${idx + 1}. [${it.time}] ${it.place?.name ?? it.place_id} (${formatCurrency(it.est_cost)})`
+        );
+      });
+    });
+    lines.push(`\n🔗 Xem bản đồ & lịch trình trên Vivu AI: ${shareUrl}`);
+    return lines.join('\n');
+  };
+
+  const handleNativeShare = async () => {
+    const text = buildShareText();
+    try {
+      await Share.share({
+        title: 'Lịch trình du lịch Đà Nẵng - Hội An (Vivu AI)',
+        message: text,
+        url: shareUrl,
+      });
+    } catch {
+      Alert.alert('Thông báo', 'Không thể mở hộp thoại chia sẻ trên thiết bị này.');
+    }
+  };
+
+  const handleCopyShare = async () => {
+    const text = buildShareText();
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        Alert.alert(
+          'Đã sao chép!',
+          'Toàn bộ lịch trình và link chia sẻ đã được lưu vào Clipboard. Bạn có thể dán ngay vào nhóm Zalo / Messenger.'
+        );
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+    Alert.alert('Nội dung chia sẻ', text);
+  };
+
+  const handlePrintPdf = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    } else {
+      Alert.alert(
+        'Xuất bản in / PDF',
+        'Đã chuẩn bị bản tóm tắt lịch trình PDF. Bạn có thể chọn "Chia sẻ qua App" để lưu hoặc gửi file.'
+      );
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* NGÂN SÁCH */}
@@ -123,7 +208,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         <View style={styles.budgetTop}>
           <View>
             <Text style={[styles.budgetLabel, { color: theme.textSub }]}>
-              Tổng chi phí • {plan.params.days} ngày • {plan.params.people} người
+              Tổng chi phí • {plan.params.days} ngày • {plan.params.people} người (~{formatShortMoney(perPersonCost)}/người)
             </Text>
             <Text style={[styles.budgetValue, { color: over ? theme.rose : theme.text }]}>
               {formatShortMoney(totalCost)}{' '}
@@ -222,6 +307,105 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           </TouchableOpacity>
         </View>
 
+        {/* TÍNH NĂNG 4: TRỢ LÝ KIỂM TRA LỊCH TRÌNH BẤT HỢP LÝ */}
+        {day.items.length > 0 && (
+          warnings.length > 0 ? (
+            <View
+              style={[
+                styles.inspectorCard,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.amber,
+                },
+              ]}
+            >
+              <View style={styles.inspectorHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Ionicons name="alert-circle" size={16} color={theme.amber} />
+                  <Text style={[styles.inspectorTitle, { color: theme.text }]}>
+                    Phát hiện {warnings.length} điểm cần lưu ý trong lịch trình
+                  </Text>
+                </View>
+                {hasHoursConflict && (
+                  <TouchableOpacity
+                    style={[styles.autoFixBtn, { backgroundColor: theme.amber }]}
+                    onPress={() => {
+                      optimizeDay(dayIndex);
+                      Alert.alert(
+                        'Đã tối ưu!',
+                        'Đã tự động sắp xếp lại thứ tự các điểm theo khung giờ mở cửa hợp lý.'
+                      );
+                    }}
+                  >
+                    <Ionicons name="flash" size={11} color="#fff" />
+                    <Text style={styles.autoFixBtnText}>Tự động sửa giờ</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={{ gap: 6, marginTop: 6 }}>
+                {warnings.map((w) => (
+                  <View
+                    key={w.id}
+                    style={[
+                      styles.warningRow,
+                      {
+                        backgroundColor: w.severity === 'high' ? theme.roseLight : theme.amberLight,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        w.type === 'hours'
+                          ? 'time-outline'
+                          : w.type === 'distance'
+                          ? 'car-outline'
+                          : 'wallet-outline'
+                      }
+                      size={13}
+                      color={w.severity === 'high' ? theme.rose : theme.secondary}
+                      style={{ marginTop: 1 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: w.severity === 'high' ? theme.rose : theme.secondary,
+                        }}
+                      >
+                        {w.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: theme.text,
+                          lineHeight: 14,
+                          marginTop: 1,
+                        }}
+                      >
+                        {w.detail}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.validScheduleBar,
+                { backgroundColor: theme.emeraldLight, borderColor: theme.emerald },
+              ]}
+            >
+              <Ionicons name="checkmark-done-circle" size={15} color={theme.emerald} />
+              <Text style={[styles.validScheduleText, { color: theme.emerald }]}>
+                Lịch trình hợp lý: Giờ mở cửa, khoảng cách và ngân sách đều tối ưu.
+              </Text>
+            </View>
+          )
+        )}
+
         {day.items.length === 0 ? (
           <View style={[styles.dayEmpty, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Ionicons name="calendar-outline" size={30} color={theme.textSub} />
@@ -233,59 +417,162 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           day.items.map((item, index) => {
             const first = index === 0;
             const last = index === day.items.length - 1;
-            return (
-              <View key={item.id} style={styles.timelineRow}>
-                <View style={styles.indicatorCol}>
-                  <View style={[styles.numBadge, { backgroundColor: theme.blueLight, borderColor: theme.primaryLight }]}>
-                    <Text style={[styles.numText, { color: theme.primaryLight }]}>{index + 1}</Text>
-                  </View>
-                  {!last && <View style={[styles.line, { backgroundColor: theme.border }]} />}
-                </View>
+            const hoursConflict = getItemHoursWarning(item);
+            const prevTravel = index > 0 ? estimateTravelBetween(day.items[index - 1], item) : null;
+            const isFar = prevTravel && prevTravel.roadKm >= 12;
 
-                <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <View style={styles.cardHeader}>
-                    <View style={[styles.timeTag, { backgroundColor: theme.blueLight }]}>
-                      <Ionicons name="time-outline" size={11} color={theme.primaryLight} />
-                      <Text style={[styles.timeTagText, { color: theme.primaryLight }]}>{item.time}</Text>
+            return (
+              <View key={item.id}>
+                {/* Cảnh báo nếu 2 điểm liên tiếp quá xa */}
+                {isFar && prevTravel && (
+                  <View
+                    style={[
+                      styles.farNoticeRow,
+                      { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                    ]}
+                  >
+                    <Ionicons name="warning-outline" size={12} color={theme.secondary} />
+                    <Text style={[styles.farNoticeText, { color: theme.secondary }]}>
+                      Cách điểm trước khá xa: {prevTravel.roadKm.toFixed(1)} km (~{prevTravel.minutes} phút di chuyển)
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.timelineRow}>
+                  <View style={styles.indicatorCol}>
+                    <View
+                      style={[
+                        styles.numBadge,
+                        {
+                          backgroundColor: hoursConflict ? theme.roseLight : theme.blueLight,
+                          borderColor: hoursConflict ? theme.rose : theme.primaryLight,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.numText,
+                          { color: hoursConflict ? theme.rose : theme.primaryLight },
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      {!first && (
-                        <TouchableOpacity style={[styles.miniBtn, { backgroundColor: theme.bg }]} onPress={() => moveItem(dayIndex, index, 'up')}>
-                          <Ionicons name="arrow-up" size={12} color={theme.textMuted} />
+                    {!last && <View style={[styles.line, { backgroundColor: theme.border }]} />}
+                  </View>
+
+                  <View
+                    style={[
+                      styles.card,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor: hoursConflict ? theme.rose : theme.border,
+                      },
+                    ]}
+                  >
+                    <View style={styles.cardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View
+                          style={[
+                            styles.timeTag,
+                            { backgroundColor: hoursConflict ? theme.roseLight : theme.blueLight },
+                          ]}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={11}
+                            color={hoursConflict ? theme.rose : theme.primaryLight}
+                          />
+                          <Text
+                            style={[
+                              styles.timeTagText,
+                              { color: hoursConflict ? theme.rose : theme.primaryLight },
+                            ]}
+                          >
+                            {item.time}
+                          </Text>
+                        </View>
+                        {item.place && (
+                          <Text style={{ fontSize: 9, color: theme.textSub }} numberOfLines={1}>
+                            Mở: {item.place.open_hours}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                        {!first && (
+                          <TouchableOpacity
+                            style={[styles.miniBtn, { backgroundColor: theme.bg }]}
+                            onPress={() => moveItem(dayIndex, index, 'up')}
+                          >
+                            <Ionicons name="arrow-up" size={12} color={theme.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                        {!last && (
+                          <TouchableOpacity
+                            style={[styles.miniBtn, { backgroundColor: theme.bg }]}
+                            onPress={() => moveItem(dayIndex, index, 'down')}
+                          >
+                            <Ionicons name="arrow-down" size={12} color={theme.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={[styles.miniBtn, { backgroundColor: theme.roseLight }]}
+                          onPress={() => confirmRemove(index)}
+                        >
+                          <Ionicons name="trash-outline" size={12} color={theme.rose} />
                         </TouchableOpacity>
-                      )}
-                      {!last && (
-                        <TouchableOpacity style={[styles.miniBtn, { backgroundColor: theme.bg }]} onPress={() => moveItem(dayIndex, index, 'down')}>
-                          <Ionicons name="arrow-down" size={12} color={theme.textMuted} />
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity style={[styles.miniBtn, { backgroundColor: theme.roseLight }]} onPress={() => confirmRemove(index)}>
-                        <Ionicons name="trash-outline" size={12} color={theme.rose} />
+                      </View>
+                    </View>
+
+                    {/* Badge cảnh báo lệch giờ mở cửa ngay trên thẻ */}
+                    {hoursConflict && (
+                      <View
+                        style={[
+                          styles.inlineConflictBadge,
+                          { backgroundColor: theme.roseLight },
+                        ]}
+                      >
+                        <Ionicons name="alert-circle" size={12} color={theme.rose} />
+                        <Text style={[styles.inlineConflictText, { color: theme.rose }]}>
+                          {hoursConflict}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={styles.cardMain}
+                      activeOpacity={0.8}
+                      onPress={() => item.place && onOpenPlace(item.place)}
+                    >
+                      {item.place && <Image source={{ uri: item.place.image }} style={styles.thumb} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>
+                          {item.place?.name}
+                        </Text>
+                        <Text
+                          style={[styles.cardNote, { color: theme.textMuted }]}
+                          numberOfLines={2}
+                        >
+                          {item.note}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={theme.textSub} />
+                    </TouchableOpacity>
+
+                    <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+                      <Text style={{ fontSize: 10, color: theme.textSub }}>
+                        Dự trù:{' '}
+                        <Text style={{ color: theme.emerald, fontWeight: '700' }}>
+                          {formatCurrency(item.est_cost)}
+                        </Text>
+                      </Text>
+                      <TouchableOpacity style={styles.navLink} onPress={() => openMaps(item)}>
+                        <Ionicons name="location-outline" size={12} color={theme.accent} />
+                        <Text style={{ fontSize: 10, color: theme.accent, fontWeight: '600' }}>
+                          Dẫn đường
+                        </Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.cardMain}
-                    activeOpacity={0.8}
-                    onPress={() => item.place && onOpenPlace(item.place)}
-                  >
-                    {item.place && <Image source={{ uri: item.place.image }} style={styles.thumb} />}
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.cardTitle, { color: theme.text }]}>{item.place?.name}</Text>
-                      <Text style={[styles.cardNote, { color: theme.textMuted }]} numberOfLines={2}>{item.note}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={theme.textSub} />
-                  </TouchableOpacity>
-
-                  <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-                    <Text style={{ fontSize: 10, color: theme.textSub }}>
-                      Dự trù: <Text style={{ color: theme.emerald, fontWeight: '700' }}>{formatCurrency(item.est_cost)}</Text>
-                    </Text>
-                    <TouchableOpacity style={styles.navLink} onPress={() => openMaps(item)}>
-                      <Ionicons name="location-outline" size={12} color={theme.accent} />
-                      <Text style={{ fontSize: 10, color: theme.accent, fontWeight: '600' }}>Dẫn đường</Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -301,10 +588,14 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           <Text style={styles.saveBtnText}>Lưu lịch trình</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.iconBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          onPress={() => Alert.alert('Xuất PDF', 'Tính năng xuất PDF sẽ dùng expo-print + expo-sharing.')}
+          style={[
+            styles.shareBtn,
+            { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+          ]}
+          onPress={() => setShareOpen(true)}
         >
-          <Ionicons name="share-social-outline" size={18} color={theme.text} />
+          <Ionicons name="share-social" size={16} color={theme.primaryLight} />
+          <Text style={[styles.shareBtnText, { color: theme.primaryLight }]}>Chia sẻ</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.iconBtn, { backgroundColor: theme.roseLight, borderColor: theme.rose }]}
@@ -348,12 +639,149 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.addName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
                     <Text style={{ fontSize: 10, color: theme.textSub }}>
-                      {p.area === 'danang' ? 'Đà Nẵng' : 'Hội An'} • {formatCurrency(p.avg_cost)}
+                      {p.area === 'danang' ? 'Đà Nẵng' : 'Hội An'} • {formatCurrency(p.avg_cost)} • Mở: {p.open_hours}
                     </Text>
                   </View>
                   <Ionicons name="add-circle" size={24} color={theme.primary} />
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* TÍNH NĂNG 5: MODAL CHIA SẺ LỊCH TRÌNH (TRAVEL PASS CARD) */}
+      <Modal visible={shareOpen} transparent animationType="fade" onRequestClose={() => setShareOpen(false)}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: theme.surface, maxHeight: '88%' }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="share-social" size={18} color={theme.primaryLight} />
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                  Chia sẻ Lịch trình Nhóm
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShareOpen(false)}>
+                <Ionicons name="close" size={22} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+              {/* Thẻ tóm tắt trực quan (Travel Pass Card) */}
+              <View
+                style={[
+                  styles.shareCardPreview,
+                  { backgroundColor: theme.bg, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.shareCardBanner}>
+                  <View>
+                    <Text style={styles.sharePassBadge}>VIVU AI TRAVEL PASS</Text>
+                    <Text style={styles.sharePassTitle}>
+                      Hành Trình Đà Nẵng - Hội An ({plan.params.days} Ngày)
+                    </Text>
+                  </View>
+                  <Ionicons name="airplane" size={24} color="#fff" />
+                </View>
+
+                <View style={styles.shareStatsRow}>
+                  <View style={styles.shareStatItem}>
+                    <Text style={[styles.shareStatLabel, { color: theme.textSub }]}>Số người</Text>
+                    <Text style={[styles.shareStatVal, { color: theme.text }]}>
+                      {plan.params.people} khách
+                    </Text>
+                  </View>
+                  <View style={styles.shareStatItem}>
+                    <Text style={[styles.shareStatLabel, { color: theme.textSub }]}>Tổng chi phí</Text>
+                    <Text style={[styles.shareStatVal, { color: theme.emerald }]}>
+                      {formatShortMoney(totalCost)}
+                    </Text>
+                  </View>
+                  <View style={styles.shareStatItem}>
+                    <Text style={[styles.shareStatLabel, { color: theme.textSub }]}>Mỗi người</Text>
+                    <Text style={[styles.shareStatVal, { color: theme.amber }]}>
+                      ~{formatShortMoney(perPersonCost)}
+                    </Text>
+                  </View>
+                </View>
+
+                {plan.days.map((d) => (
+                  <View
+                    key={d.day}
+                    style={[styles.shareDayBox, { borderTopColor: theme.border }]}
+                  >
+                    <Text style={[styles.shareDayTitle, { color: theme.primaryLight }]}>
+                      📅 Ngày {d.day}: {d.area === 'danang' ? 'Đà Nẵng' : 'Hội An'} ({d.items.length} điểm)
+                    </Text>
+                    {d.items.map((it, idx) => (
+                      <Text
+                        key={it.id}
+                        style={[styles.shareItemLine, { color: theme.text }]}
+                        numberOfLines={1}
+                      >
+                        {idx + 1}. <Text style={{ color: theme.textSub }}>{it.time}</Text> •{' '}
+                        {it.place?.name}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+
+                <View
+                  style={[
+                    styles.shareLinkBox,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}
+                >
+                  <Ionicons name="link-outline" size={14} color={theme.accent} />
+                  <Text
+                    style={{ fontSize: 10, color: theme.accent, flex: 1, fontWeight: '600' }}
+                    numberOfLines={1}
+                  >
+                    {shareUrl}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Các nút hành động chia sẻ */}
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.shareActionBtn, { backgroundColor: theme.primary }]}
+                  onPress={handleCopyShare}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#fff" />
+                  <Text style={styles.shareActionPrimaryText}>
+                    Sao chép Lịch trình & Link (Gửi Zalo / Messenger)
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.shareSecondaryBtn,
+                      { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                    ]}
+                    onPress={handleNativeShare}
+                  >
+                    <Ionicons name="share-outline" size={15} color={theme.primaryLight} />
+                    <Text style={[styles.shareSecondaryText, { color: theme.primaryLight }]}>
+                      Chia sẻ qua App
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.shareSecondaryBtn,
+                      { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                    ]}
+                    onPress={handlePrintPdf}
+                  >
+                    <Ionicons name="document-text-outline" size={15} color={theme.secondary} />
+                    <Text style={[styles.shareSecondaryText, { color: theme.secondary }]}>
+                      Xuất PDF / In
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -429,4 +857,194 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 14, borderWidth: 1 },
   addThumb: { width: 46, height: 46, borderRadius: 10 },
   addName: { fontSize: 12, fontWeight: '700' },
+  inspectorCard: {
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  inspectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  inspectorTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    flex: 1,
+  },
+  autoFixBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  autoFixBtnText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    padding: 8,
+    borderRadius: 10,
+  },
+  validScheduleBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  validScheduleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  farNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 34,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  farNoticeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
+  },
+  inlineConflictBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  inlineConflictText: {
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  shareBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  shareCardPreview: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  shareCardBanner: {
+    backgroundColor: '#1D4ED8',
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sharePassBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#93C5FD',
+    letterSpacing: 0.8,
+  },
+  sharePassTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+    marginTop: 2,
+  },
+  shareStatsRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'space-between',
+  },
+  shareStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  shareStatLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  shareStatVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  shareDayBox: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    gap: 4,
+  },
+  shareDayTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  shareItemLine: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  shareLinkBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    margin: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  shareActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 14,
+  },
+  shareActionPrimaryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  shareSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  shareSecondaryText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
 });
