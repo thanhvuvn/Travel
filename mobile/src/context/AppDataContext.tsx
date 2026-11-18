@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { ItineraryDay, ItineraryItem, Place, Area, WeatherCondition } from '../types';
 import { calculateHaversineDistance } from '../utils/distance';
+import { parseTimeRange } from '../utils/scheduleValidator';
 import { useAuth } from './AuthContext';
 import { usePlaces } from './PlacesContext';
 
@@ -56,6 +57,7 @@ interface AppDataValue {
   removeItem: (dayIndex: number, index: number) => void;
   addPlaceToDay: (dayIndex: number, place: Place) => void;
   regenerateDay: (dayIndex: number) => void;
+  optimizeDay: (dayIndex: number) => void;
 
   // Mô phỏng trạng thái lỗi (phục vụ demo)
   sim: SimState;
@@ -78,6 +80,7 @@ const AppDataContext = createContext<AppDataValue>({
   removeItem: noop,
   addPlaceToDay: noop,
   regenerateDay: noop,
+  optimizeDay: noop,
   sim: { aiError: false, gpsDenied: false, cameraDenied: false },
   setSim: noop,
 });
@@ -274,6 +277,32 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateDay(dayIndex, () => fresh);
   };
 
+  /**
+   * Tự động tối ưu thứ tự các điểm trong ngày theo giờ mở cửa & khoảng cách gần nhau
+   */
+  const optimizeDay = (dayIndex: number) =>
+    updateDay(dayIndex, (d) => {
+      if (d.items.length <= 1) return d;
+      const sorted = [...d.items].sort((a, b) => {
+        const rangeA = a.place ? parseTimeRange(a.place.open_hours) : null;
+        const rangeB = b.place ? parseTimeRange(b.place.open_hours) : null;
+        // Ưu tiên điểm mở sớm lên trước, điểm mở chiều/tối (như thả hoa đăng 17:30) xuống cuối
+        const startA = rangeA ? rangeA[0] : 420;
+        const startB = rangeB ? rangeB[0] : 420;
+        const endA = rangeA ? rangeA[1] : 1320;
+        const endB = rangeB ? rangeB[1] : 1320;
+        if (startA !== startB) return startA - startB;
+        return endA - endB;
+      });
+      return {
+        ...d,
+        items: sorted.map((it, idx) => ({
+          ...it,
+          time: TIME_SLOTS[idx] ?? '21:00 - 22:00',
+        })),
+      };
+    });
+
   return (
     <AppDataContext.Provider
       value={{
@@ -290,6 +319,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         removeItem,
         addPlaceToDay,
         regenerateDay,
+        optimizeDay,
         sim,
         setSim,
       }}
