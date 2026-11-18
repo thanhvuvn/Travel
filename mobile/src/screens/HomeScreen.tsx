@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,15 +19,21 @@ import { Alert } from '../utils/dialog';
 import { calculateHaversineDistance, formatDistance, MOCK_USER_LOCATION } from '../utils/distance';
 import { formatCurrency } from '../utils/format';
 import { MOCK_TRAVEL_EVENTS } from '../data/mockEvents';
+import { MOCK_SPECIALTIES, SpecialtyDish } from '../data/mockSpecialties';
 import { MOCK_WEATHER_DATA, LOCAL_TIMING_TIPS } from '../data/mockWeather';
 import { SuggestPlaceModal } from './SuggestPlaceModal';
 
 interface HomeScreenProps {
   onNavigateToPlanner: () => void;
+  onNavigateToVision?: () => void;
   onOpenPlace: (place: Place) => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onOpenPlace }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onNavigateToPlanner,
+  onNavigateToVision,
+  onOpenPlace,
+}) => {
   const { theme } = useTheme();
   const { user, openAuthModal } = useAuth();
   const { places } = usePlaces();
@@ -35,6 +42,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
     toggleFavorite,
     weatherCondition,
     setWeatherCondition,
+    setActiveVisionSample,
+    plan,
+    addPlaceToDay,
     sim,
     setSim,
   } = useAppData();
@@ -43,6 +53,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [selectedDish, setSelectedDish] = useState<SpecialtyDish | null>(null);
 
   const activeWeatherArea: Area = selectedArea === 'hoian' ? 'hoian' : 'danang';
   const currentWeather = MOCK_WEATHER_DATA[activeWeatherArea][weatherCondition];
@@ -318,6 +329,87 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
           </TouchableOpacity>
         </View>
 
+        {/* BẢN ĐỒ ẨM THỰC XỨ QUẢNG (FOOD TRAIL NỐI VỚI VISION AI) */}
+        <View style={{ marginTop: 14 }}>
+          <View style={[styles.sectionHeader, { marginTop: 2, marginBottom: 8 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="restaurant-outline" size={15} color={theme.secondary} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Bản Đồ Ẩm Thực Xứ Quảng
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => onNavigateToVision?.()}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+            >
+              <Ionicons name="camera-outline" size={13} color={theme.primaryLight} />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primaryLight }}>
+                Quét món bằng AI
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+          >
+            {MOCK_SPECIALTIES.filter(
+              (d) => selectedArea === 'all' || d.area === selectedArea
+            ).map((dish) => (
+              <TouchableOpacity
+                key={dish.id}
+                style={[
+                  styles.foodTrailCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+                activeOpacity={0.85}
+                onPress={() => setSelectedDish(dish)}
+              >
+                <View style={styles.foodTrailImgWrap}>
+                  <Image source={{ uri: dish.image }} style={styles.foodTrailImg} />
+                  <View
+                    style={[
+                      styles.areaTag,
+                      dish.area === 'danang'
+                        ? { backgroundColor: '#2563EB' }
+                        : { backgroundColor: '#EA580C' },
+                    ]}
+                  >
+                    <Text style={styles.areaTagText}>
+                      {dish.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}
+                    </Text>
+                  </View>
+                  <View style={styles.foodVisionBadge}>
+                    <Ionicons name="scan-outline" size={10} color="#38BDF8" />
+                    <Text style={styles.foodVisionBadgeText}>Vision AI</Text>
+                  </View>
+                </View>
+
+                <View style={{ padding: 10 }}>
+                  <Text style={[styles.foodTrailName, { color: theme.text }]} numberOfLines={1}>
+                    {dish.emoji} {dish.name}
+                  </Text>
+                  <Text
+                    style={[styles.foodTrailTagline, { color: theme.textMuted }]}
+                    numberOfLines={1}
+                  >
+                    {dish.tagline}
+                  </Text>
+                  <View style={styles.foodTrailFooter}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.emerald }}>
+                      {dish.priceRange}
+                    </Text>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
+                      Khám phá →
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* CATEGORY CHIPS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
           {categories.map((cat) => {
@@ -486,6 +578,187 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToPlanner, onO
       </ScrollView>
 
       <SuggestPlaceModal visible={suggestOpen} onClose={() => setSuggestOpen(false)} />
+
+      {/* MODAL CHI TIẾT MÓN ĐẶC SẢN (BẢN ĐỒ ẨM THỰC XỨ QUẢNG) */}
+      <Modal
+        visible={!!selectedDish}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedDish(null)}
+      >
+        <View style={styles.dishModalOverlay}>
+          {selectedDish && (
+            <View style={[styles.dishModalSheet, { backgroundColor: theme.surface }]}>
+              <View style={styles.dishHeroWrap}>
+                <Image source={{ uri: selectedDish.image }} style={styles.dishHeroImg} />
+                <TouchableOpacity
+                  style={styles.dishCloseBtn}
+                  onPress={() => setSelectedDish(null)}
+                >
+                  <Ionicons name="close" size={20} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.dishHeroBadgeRow}>
+                  <View
+                    style={[
+                      styles.dishAreaPill,
+                      {
+                        backgroundColor:
+                          selectedDish.area === 'danang' ? '#2563EB' : '#EA580C',
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>
+                      Đặc sản {selectedDish.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}
+                    </Text>
+                  </View>
+                  <View style={styles.dishPricePill}>
+                    <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>
+                      {selectedDish.priceRange}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>
+                    {selectedDish.emoji} {selectedDish.name}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.secondary, fontWeight: '600', marginTop: 2 }}>
+                    {selectedDish.tagline}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.dishStoryBox,
+                    { backgroundColor: theme.bg, borderColor: theme.border },
+                  ]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text, marginBottom: 4 }}>
+                    📖 Câu chuyện văn hóa ẩm thực
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textMuted, lineHeight: 18 }}>
+                    {selectedDish.story}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.dishStoryBox,
+                    { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                  ]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: theme.secondary, marginBottom: 4 }}>
+                    🍴 Bí quyết ăn đúng điệu người bản xứ
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.text, lineHeight: 18 }}>
+                    {selectedDish.howToEat}
+                  </Text>
+                </View>
+
+                {/* Danh sách quán chuẩn vị trong hệ thống */}
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text, marginBottom: 8 }}>
+                    📍 Quán chuẩn vị trong hệ thống Vivu AI
+                  </Text>
+                  {places
+                    .filter(
+                      (p) =>
+                        selectedDish.recommendedPlaceIds.includes(p.id) && p.is_active
+                    )
+                    .map((p) => (
+                      <View
+                        key={p.id}
+                        style={[
+                          styles.dishPlaceRow,
+                          { backgroundColor: theme.bg, borderColor: theme.border },
+                        ]}
+                      >
+                        <Image source={{ uri: p.image }} style={styles.dishPlaceThumb} />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{ fontSize: 12, fontWeight: '800', color: theme.text }}
+                            numberOfLines={1}
+                          >
+                            {p.name}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: theme.textSub, marginTop: 2 }}>
+                            ★ {p.rating} ({p.review_count}) • {formatCurrency(p.avg_cost)} • Mở:{' '}
+                            {p.open_hours}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={[
+                              styles.dishPlaceBtn,
+                              { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
+                            ]}
+                            onPress={() => {
+                              const target = p;
+                              setSelectedDish(null);
+                              onOpenPlace(target);
+                            }}
+                          >
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
+                              Chi tiết
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              styles.dishPlaceBtn,
+                              { backgroundColor: theme.primary, borderColor: theme.primary },
+                            ]}
+                            onPress={() => {
+                              if (!plan) {
+                                setSelectedDish(null);
+                                Alert.alert(
+                                  'Chưa có lịch trình',
+                                  'Hãy tạo lịch trình bằng AI trước rồi thêm quán này vào.',
+                                  [
+                                    { text: 'Để sau', style: 'cancel' },
+                                    { text: 'Tạo lịch', onPress: onNavigateToPlanner },
+                                  ]
+                                );
+                                return;
+                              }
+                              if (plan.days[0].items.some((it) => it.place_id === p.id)) {
+                                Alert.alert('Đã có trong lịch', `${p.name} đã có trong Ngày 1.`);
+                                return;
+                              }
+                              addPlaceToDay(0, p);
+                              Alert.alert('Đã thêm!', `Đã thêm "${p.name}" vào Ngày 1 của lịch trình.`);
+                            }}
+                          >
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
+                              + Lịch
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                </View>
+
+                {/* Nút kết nối thẳng sang Gemini Vision AI */}
+                <TouchableOpacity
+                  style={[styles.dishVisionBtn, { backgroundColor: theme.primary }]}
+                  onPress={() => {
+                    const key = selectedDish.id;
+                    setSelectedDish(null);
+                    setActiveVisionSample(key);
+                    onNavigateToVision?.();
+                  }}
+                >
+                  <Ionicons name="scan-circle-outline" size={20} color="#fff" />
+                  <Text style={styles.dishVisionBtnText}>
+                    Mở Camera Gemini Vision AI quét thử món này
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -565,4 +838,138 @@ const styles = StyleSheet.create({
   eventDesc: { fontSize: 10, lineHeight: 14, marginTop: 4 },
   bestTimeBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, borderWidth: 1, marginTop: 4 },
   bestTimeText: { fontSize: 9, fontWeight: '600' },
+  foodTrailCard: {
+    width: 215,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  foodTrailImgWrap: {
+    height: 100,
+    position: 'relative',
+  },
+  foodTrailImg: {
+    width: '100%',
+    height: '100%',
+  },
+  foodVisionBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  foodVisionBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#38BDF8',
+  },
+  foodTrailName: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  foodTrailTagline: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  foodTrailFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  dishModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  dishModalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    overflow: 'hidden',
+  },
+  dishHeroWrap: {
+    height: 185,
+    position: 'relative',
+  },
+  dishHeroImg: {
+    width: '100%',
+    height: '100%',
+  },
+  dishCloseBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dishHeroBadgeRow: {
+    position: 'absolute',
+    bottom: 10,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dishAreaPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dishPricePill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dishStoryBox: {
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  dishPlaceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  dishPlaceThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+  },
+  dishPlaceBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  dishVisionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 14,
+    marginTop: 2,
+  },
+  dishVisionBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
 });

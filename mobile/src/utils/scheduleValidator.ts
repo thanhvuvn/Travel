@@ -84,6 +84,34 @@ export function estimateTravelBetween(
   return { roadKm, minutes };
 }
 
+export interface TravelOptions {
+  roadKm: number;
+  carMinutes: number;
+  carCost: number;
+  bikeMinutes: number;
+  bikeCost: number;
+}
+
+/**
+ * Ước tính di chuyển bằng taxi/Grab và xe máy giữa 2 điểm (số liệu demo, làm tròn 1.000đ)
+ * Grab: mở cửa 12.000đ + 10.000đ/km | Xe máy: mở cửa 8.000đ + 6.500đ/km
+ */
+export function estimateTravelOptions(
+  prevItem?: ItineraryItem,
+  currItem?: ItineraryItem
+): TravelOptions | null {
+  const base = estimateTravelBetween(prevItem, currItem);
+  if (!base) return null;
+  const round = (v: number) => Math.round(v / 1000) * 1000;
+  return {
+    roadKm: base.roadKm,
+    carMinutes: base.minutes,
+    carCost: round(12000 + base.roadKm * 10000),
+    bikeMinutes: Math.max(3, Math.round(base.minutes * 1.1)),
+    bikeCost: round(8000 + base.roadKm * 6500),
+  };
+}
+
 /**
  * Phân tích toàn bộ cảnh báo bất hợp lý cho một ngày và ngân sách chung
  */

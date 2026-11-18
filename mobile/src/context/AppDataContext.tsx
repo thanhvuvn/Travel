@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { VisionSampleKey } from '../data/mockSpecialties';
 import { ItineraryDay, ItineraryItem, Place, Area, WeatherCondition } from '../types';
 import { calculateHaversineDistance } from '../utils/distance';
 import { parseTimeRange } from '../utils/scheduleValidator';
@@ -48,6 +49,10 @@ interface AppDataValue {
   weatherCondition: WeatherCondition;
   setWeatherCondition: (c: WeatherCondition) => void;
 
+  // Mẫu quét ảnh Vision AI đang chọn (kết nối Food Trail <-> Vision)
+  activeVisionSample: VisionSampleKey;
+  setActiveVisionSample: (k: VisionSampleKey) => void;
+
   // Lịch trình
   plan: PlanState | null;
   guestUsed: number;
@@ -72,6 +77,8 @@ const AppDataContext = createContext<AppDataValue>({
   toggleFavorite: noop,
   weatherCondition: 'sunny',
   setWeatherCondition: noop,
+  activeVisionSample: 'miquang',
+  setActiveVisionSample: noop,
   plan: null,
   guestUsed: 0,
   createPlan: () => 'error',
@@ -187,6 +194,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>('sunny');
+  const [activeVisionSample, setActiveVisionSample] = useState<VisionSampleKey>('miquang');
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [guestUsed, setGuestUsed] = useState(0);
   const [sim, setSimState] = useState<SimState>({
@@ -311,6 +319,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleFavorite,
         weatherCondition,
         setWeatherCondition,
+        activeVisionSample,
+        setActiveVisionSample,
         plan,
         guestUsed,
         createPlan,

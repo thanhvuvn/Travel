@@ -20,7 +20,7 @@ import { ItineraryItem, Place } from '../types';
 import { Alert } from '../utils/dialog';
 import { formatCurrency, formatShortMoney } from '../utils/format';
 import {
-  estimateTravelBetween,
+  estimateTravelOptions,
   getItemHoursWarning,
   inspectSchedule,
 } from '../utils/scheduleValidator';
@@ -418,22 +418,37 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
             const first = index === 0;
             const last = index === day.items.length - 1;
             const hoursConflict = getItemHoursWarning(item);
-            const prevTravel = index > 0 ? estimateTravelBetween(day.items[index - 1], item) : null;
-            const isFar = prevTravel && prevTravel.roadKm >= 12;
+            const travelOpts = index > 0 ? estimateTravelOptions(day.items[index - 1], item) : null;
+            const isFar = !!travelOpts && travelOpts.roadKm >= 12;
 
             return (
               <View key={item.id}>
-                {/* Cảnh báo nếu 2 điểm liên tiếp quá xa */}
-                {isFar && prevTravel && (
+                {/* Dải nối lộ trình giữa 2 điểm: Grab / xe máy */}
+                {travelOpts && (
                   <View
                     style={[
                       styles.farNoticeRow,
-                      { backgroundColor: theme.amberLight, borderColor: theme.amber },
+                      {
+                        backgroundColor: isFar ? theme.amberLight : theme.surface,
+                        borderColor: isFar ? theme.amber : theme.border,
+                      },
                     ]}
                   >
-                    <Ionicons name="warning-outline" size={12} color={theme.secondary} />
-                    <Text style={[styles.farNoticeText, { color: theme.secondary }]}>
-                      Cách điểm trước khá xa: {prevTravel.roadKm.toFixed(1)} km (~{prevTravel.minutes} phút di chuyển)
+                    <Ionicons
+                      name={isFar ? 'warning-outline' : 'navigate-outline'}
+                      size={12}
+                      color={isFar ? theme.secondary : theme.textSub}
+                    />
+                    <Text
+                      style={[
+                        styles.farNoticeText,
+                        { color: isFar ? theme.secondary : theme.textMuted },
+                      ]}
+                    >
+                      {travelOpts.roadKm.toFixed(1)} km • 🚗 Grab ~{travelOpts.carMinutes}p (~
+                      {formatShortMoney(travelOpts.carCost)}) • 🛵 Xe máy ~{travelOpts.bikeMinutes}p (~
+                      {formatShortMoney(travelOpts.bikeCost)})
+                      {isFar ? ' • Khá xa' : ''}
                     </Text>
                   </View>
                 )}

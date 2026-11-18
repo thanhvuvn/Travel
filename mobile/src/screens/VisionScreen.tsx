@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { MOCK_SPECIALTIES, VisionSampleKey } from '../data/mockSpecialties';
 import { Alert } from '../utils/dialog';
 
 interface VisionScreenProps {
@@ -22,17 +23,46 @@ interface VisionScreenProps {
 export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, onGoPlanner }) => {
   const { theme } = useTheme();
   const { places } = usePlaces();
-  const { plan, addPlaceToDay, sim, setSim } = useAppData();
+  const {
+    plan,
+    addPlaceToDay,
+    sim,
+    setSim,
+    activeVisionSample,
+    setActiveVisionSample,
+  } = useAppData();
   const [isScanning, setIsScanning] = useState(false);
-  const [activeImageKey, setActiveImageKey] = useState<'miquang' | 'caurong'>('miquang');
 
-  const sampleImages = {
+  const sampleImages: Record<
+    VisionSampleKey,
+    {
+      url: string;
+      title: string;
+      emoji: string;
+      shortLabel: string;
+      category: string;
+      confidence: number;
+      desc: string;
+      howToEat?: string;
+      placeId: string;
+      matchedPlace: {
+        name: string;
+        address: string;
+        cost: string;
+        distance: string;
+      };
+    }
+  > = {
     miquang: {
       url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
       title: 'Mì Quảng Tôm Thịt / Ếch',
-      category: 'Đặc sản ẩm thực xứ Quảng',
-      confidence: 96,
-      desc: 'Món ăn linh hồn của đất Quảng, sợi mì làm từ bột gạo dẻo thơm, nước nhưn đậm đà chan sâm sấp, ăn kèm rau sống Trà Quế và bánh tráng mè nướng giòn.',
+      emoji: '🍜',
+      shortLabel: 'Mì Quảng',
+      category: 'Đặc sản ẩm thực Đà Nẵng',
+      confidence: 97,
+      desc: MOCK_SPECIALTIES[0].story,
+      howToEat: MOCK_SPECIALTIES[0].howToEat,
+      placeId: 'dn01',
       matchedPlace: {
         name: 'Mì Quảng Bà Mua',
         address: '19 Trần Bình Trọng, Hải Châu, Đà Nẵng',
@@ -40,12 +70,66 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
         distance: '450m',
       },
     },
+    caolau: {
+      url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=80',
+      title: 'Cao Lầu Phố Cổ Hội An',
+      emoji: '🥢',
+      shortLabel: 'Cao Lầu',
+      category: 'Đặc sản ẩm thực Hội An',
+      confidence: 96,
+      desc: MOCK_SPECIALTIES[1].story,
+      howToEat: MOCK_SPECIALTIES[1].howToEat,
+      placeId: 'ha02',
+      matchedPlace: {
+        name: 'Cao Lầu Thanh Hội An',
+        address: '26 Thái Phiên, Minh An, Hội An',
+        cost: '40.000đ - 55.000đ',
+        distance: '650m',
+      },
+    },
+    banhtrangthitheo: {
+      url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80',
+      title: 'Bánh Tráng Cuốn Thịt Heo 2 Đầu Da',
+      emoji: '🌯',
+      shortLabel: 'Bánh Tráng Thịt Heo',
+      category: 'Đặc sản ẩm thực Đà Nẵng',
+      confidence: 95,
+      desc: MOCK_SPECIALTIES[2].story,
+      howToEat: MOCK_SPECIALTIES[2].howToEat,
+      placeId: 'dn05',
+      matchedPlace: {
+        name: 'Đặc Sản Trần (Bánh Tráng Cuốn Thịt Heo)',
+        address: '04 Lê Duẩn, Hải Châu, Đà Nẵng',
+        cost: '120.000đ - 160.000đ',
+        distance: '900m',
+      },
+    },
+    banhmiphuong: {
+      url: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=600&auto=format&fit=crop&q=80',
+      title: 'Bánh Mì Hội An Giòn Rụm',
+      emoji: '🥖',
+      shortLabel: 'Bánh Mì Phượng',
+      category: 'Ẩm thực đường phố Hội An',
+      confidence: 98,
+      desc: MOCK_SPECIALTIES[3].story,
+      howToEat: MOCK_SPECIALTIES[3].howToEat,
+      placeId: 'ha03',
+      matchedPlace: {
+        name: 'Bánh Mì Phượng Hội An',
+        address: '2B Phan Chu Trinh, Minh An, Hội An',
+        cost: '30.000đ - 45.000đ',
+        distance: '500m',
+      },
+    },
     caurong: {
       url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=600&auto=format&fit=crop&q=80',
       title: 'Cầu Rồng Đà Nẵng',
+      emoji: '🐉',
+      shortLabel: 'Cầu Rồng',
       category: 'Địa danh biểu tượng',
       confidence: 98,
       desc: 'Cây cầu thép dài 666m hình con rồng vươn mình ra biển lớn, có khả năng phun lửa và phun nước vào 21h thứ Bảy và Chủ Nhật.',
+      placeId: 'dn02',
       matchedPlace: {
         name: 'Cầu Rồng Phun Lửa',
         address: 'Bắc Mỹ Phú, Sơn Trà, Đà Nẵng',
@@ -55,10 +139,10 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     },
   };
 
-  const currentSample = sampleImages[activeImageKey];
+  const currentSample = sampleImages[activeVisionSample] ?? sampleImages.miquang;
 
   const handleAdd = () => {
-    const placeId = activeImageKey === 'miquang' ? 'dn01' : 'dn02';
+    const placeId = currentSample.placeId;
     const place = places.find((p) => p.id === placeId);
     if (!place || !place.is_active) {
       Alert.alert('Không khả dụng', 'Địa điểm này đang tạm ẩn khỏi hệ thống.');
@@ -111,13 +195,21 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     );
   }
 
-  const triggerScan = (key: 'miquang' | 'caurong') => {
-    setActiveImageKey(key);
+  const triggerScan = (key: VisionSampleKey) => {
+    setActiveVisionSample(key);
     setIsScanning(true);
     setTimeout(() => {
       setIsScanning(false);
-    }, 1200);
+    }, 900);
   };
+
+  const sampleKeys: VisionSampleKey[] = [
+    'miquang',
+    'caolau',
+    'banhtrangthitheo',
+    'banhmiphuong',
+    'caurong',
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -165,53 +257,57 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
         </View>
 
         <View style={styles.sampleSwitcherSection}>
-          <Text style={[styles.switcherLabel, { color: theme.textSub }]}>
-            Thử nghiệm với mẫu ảnh có sẵn:
-          </Text>
-          <View style={styles.switcherButtonsRow}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={[styles.switcherLabel, { color: theme.textSub, marginBottom: 0 }]}>
+              Chọn mẫu ảnh đặc sản / danh thắng để quét:
+            </Text>
             <TouchableOpacity
-              style={[
-                styles.sampleBtn,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-                activeImageKey === 'miquang' && {
-                  backgroundColor: theme.blueLight,
-                  borderColor: theme.primaryLight,
-                },
-              ]}
-              onPress={() => triggerScan('miquang')}
-            >
-              <Text style={styles.sampleBtnEmoji}>🍜</Text>
-              <Text style={[styles.sampleBtnText, { color: theme.text }]}>Mì Quảng</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sampleBtn,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-                activeImageKey === 'caurong' && {
-                  backgroundColor: theme.blueLight,
-                  borderColor: theme.primaryLight,
-                },
-              ]}
-              onPress={() => triggerScan('caurong')}
-            >
-              <Text style={styles.sampleBtnEmoji}>🐉</Text>
-              <Text style={[styles.sampleBtnText, { color: theme.text }]}>Cầu Rồng</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sampleBtnCustom,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
               onPress={() =>
                 Alert.alert('Camera', 'Tính năng mở expo-image-picker để chọn ảnh từ máy thật.')
               }
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
             >
-              <Ionicons name="camera-outline" size={16} color={theme.text} />
-              <Text style={[styles.sampleBtnCustomText, { color: theme.text }]}>Chụp ảnh</Text>
+              <Ionicons name="camera-outline" size={13} color={theme.primaryLight} />
+              <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
+                Tải ảnh lên
+              </Text>
             </TouchableOpacity>
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {sampleKeys.map((key) => {
+              const item = sampleImages[key];
+              const isSelected = activeVisionSample === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.sampleChipBtn,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                    isSelected && {
+                      backgroundColor: theme.blueLight,
+                      borderColor: theme.primaryLight,
+                    },
+                  ]}
+                  onPress={() => triggerScan(key)}
+                >
+                  <Text style={styles.sampleBtnEmoji}>{item.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.sampleBtnText,
+                      { color: isSelected ? theme.primaryLight : theme.text },
+                    ]}
+                  >
+                    {item.shortLabel}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <View
@@ -236,6 +332,22 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
 
           <Text style={[styles.resultTitle, { color: theme.text }]}>{currentSample.title}</Text>
           <Text style={[styles.resultDesc, { color: theme.textMuted }]}>{currentSample.desc}</Text>
+
+          {currentSample.howToEat && (
+            <View
+              style={[
+                styles.howToEatBox,
+                { backgroundColor: theme.amberLight, borderColor: theme.amber },
+              ]}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '800', color: theme.secondary }}>
+                🍴 Bí quyết thưởng thức đúng điệu:
+              </Text>
+              <Text style={{ fontSize: 10, color: theme.text, lineHeight: 15, marginTop: 2 }}>
+                {currentSample.howToEat}
+              </Text>
+            </View>
+          )}
 
           <View style={[styles.matchedSection, { borderTopColor: theme.border }]}>
             <Text style={[styles.matchedLabel, { color: theme.textSub }]}>
@@ -390,6 +502,21 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
     gap: 4,
+  },
+  sampleChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  howToEatBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   addBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });

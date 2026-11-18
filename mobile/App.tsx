@@ -93,7 +93,11 @@ function MainApp() {
           <>
             <View style={styles.contentContainer}>
               {currentTab === 'home' && (
-                <HomeScreen onNavigateToPlanner={() => goTab('planner')} onOpenPlace={setDetailPlace} />
+                <HomeScreen
+                  onNavigateToPlanner={() => goTab('planner')}
+                  onNavigateToVision={() => goTab('vision')}
+                  onOpenPlace={setDetailPlace}
+                />
               )}
               {currentTab === 'planner' && <PlannerScreen onPlanGenerated={() => goTab('itinerary')} />}
               {currentTab === 'itinerary' && (
