@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// PHẦN I: THIẾT KẾ CSDL POSTGRESQL ĐẦY ĐỦ 8 NHÓM BẢNG - VIVU AI
+// - Thành viên A: User, Place
+// - Thành viên B: Favorite, Itinerary, ItineraryItem, AiLog
+// - Trưởng nhóm:  Review, PlaceSuggestion, PlaceReport (và truy vấn Stats)
+// ============================================================================
+
+enum UserRole {
+  user
+  admin
+}
+
+enum Area {
+  danang
+  hoian
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ReportStatus {
+  open
+  closed_confirmed
+  dismissed
+}
+
+/// 1. Bảng Tài khoản người dùng (Thành viên A phụ trách Auth & Lock)
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  role          UserRole @default(user)
+  is_locked     Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  favorites   Favorite[]
+  itineraries Itinerary[]
+  reviews     Review[]
+  suggestions PlaceSuggestion[]
+  reports     PlaceReport[]
+  ai_logs     AiLog[]
+
+  @@map("users")
+}
+
+/// 2. Bảng Địa điểm Đà Nẵng - Hội An (Thành viên A phụ trách CRUD & Seed)
+model Place {
+  id                  String   @id @default(cuid())
+  area                Area
+  name                String
+  type                String
+  category            String   // food | beach | checkin | culture | cafe
+  lat                 Float
+  lng                 Float
+  description         String
+  image               String
+  avg_cost            Int      @default(0)
+  open_hours          String   @default("07:00 - 22:00")
+  rating              Float    @default(5.0)
+  review_count        Int      @default(0)
+  tags                String[] @default([])
+  is_active           Boolean  @default(true)
+  best_time           String?
+  weather_suitability String?  @default("all") // all | sunny | rainy | indoor
+  events              String[] @default([])
+  seasons             String[] @default(["all"])
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  favorites       Favorite[]
+  itinerary_items ItineraryItem[]
+  reviews         Review[]
+  reports         PlaceReport[]
+
+  @@index([area, is_active])
+  @@index([category])
+  @@map("places")
+}
+
+/// 3. Bảng Địa điểm Yêu thích (Thành viên B phụ trách)
+model Favorite {
+  id         String   @id @default(cuid())
+  user_id    String
+  place_id   String
+  created_at DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  place Place @relation(fields: [place_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, place_id])
+  @@map("favorites")
+}
+
+/// 4. Bảng Lịch trình đã lưu của Du khách (Thành viên B phụ trách)
+model Itinerary {
+  id         String   @id @default(cuid())
+  user_id    String
+  title      String
+  area       String   // danang | hoian | both
+  days       Int
+  people     Int      @default(2)
+  budget     Int      @default(3000000)
+  total_cost Int      @default(0)
+  event      String?
+  weather    String?
+  created_at DateTime @default(now())
+
+  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items ItineraryItem[]
+
+  @@index([user_id])
+  @@map("itineraries")
+}
+
+/// 5. Bảng Chi tiết từng điểm dừng trong Lịch trình (Thành viên B phụ trách)
+model ItineraryItem {
+  id           String @id @default(cuid())
+  itinerary_id String
+  day_number   Int
+  area         Area
+  order_index  Int
+  time         String
+  place_id     String
+  note         String @default("")
+  est_cost     Int    @default(0)
+
+  itinerary Itinerary @relation(fields: [itinerary_id], references: [id], onDelete: Cascade)
+  place     Place     @relation(fields: [place_id], references: [id], onDelete: Cascade)
+
+  @@index([itinerary_id, day_number])
+  @@map("itinerary_items")
+}
+
+/// 6. Bảng Nhật ký gọi Gemini AI phục vụ Thống kê (Thành viên B ghi log, Trưởng nhóm đọc Stats)
+model AiLog {
+  id          String   @id @default(cuid())
+  user_id     String?
+  endpoint    String   // "plan" | "vision"
+  is_success  Boolean  @default(true)
+  response_ms Int      @default(1800)
+  tokens_est  Int      @default(350)
+  created_at  DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([created_at])
+  @@map("ai_logs")
+}
+
+/// 7. Bảng Đánh giá địa điểm của Du khách (Trưởng nhóm phụ trách)
+model Review {
+  id         String       @id @default(cuid())
+  place_id   String
+  user_id    String?
+  user_name  String
+  rating     Int          // 1 -> 5
+  content    String
+  status     ReviewStatus @default(pending)
+  created_at DateTime     @default(now())
+
+  place Place @relation(fields: [place_id], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([place_id, status])
+  @@map("reviews")
+}
+
+/// 8a. Bảng Đề xuất quán mới từ Cộng đồng (Trưởng nhóm phụ trách)
+model PlaceSuggestion {
+  id         String       @id @default(cuid())
+  user_id    String?
+  user_name  String
+  name       String
+  area       Area
+  category   String
+  note       String       @default("")
+  lat        Float?
+  lng        Float?
+  status     ReviewStatus @default(pending)
+  created_at DateTime     @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("suggestions")
+}
+
+/// 8b. Bảng Báo cáo quán đóng cửa / sai thông tin (Trưởng nhóm phụ trách)
+model PlaceReport {
+  id         String       @id @default(cuid())
+  place_id   String
+  user_id    String?
+  user_name  String
+  status     ReportStatus @default(open)
+  created_at DateTime     @default(now())
+
+  place Place @relation(fields: [place_id], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([place_id, status])
+  @@map("reports")
+}

@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { MOCK_PLACES } from '../data/mockPlaces';
 import { MOCK_REVIEWS } from '../data/mockReviews';
 import { MOCK_USERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_SUGGESTIONS } from '../data/mockCommunity';
+import { communityApi } from '../services/communityApi';
 import {
   AIStat,
   Area,
@@ -89,18 +90,46 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [reports, setReports] = useState<PlaceReport[]>(MOCK_REPORTS);
   const [aiStats, setAiStats] = useState<AIStat>(INITIAL_AI_STATS);
 
+  // Tự động đồng bộ Reviews, Suggestions, Reports & Stats từ Backend nếu server đang chạy
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const [revRes, sugRes, repRes, statsRes] = await Promise.all([
+        communityApi.getReviews(),
+        communityApi.getSuggestions(),
+        communityApi.getReports(),
+        communityApi.getAdminStats(),
+      ]);
+      if (!mounted) return;
+      if (revRes?.success && revRes.data && revRes.data.length > 0) setReviews(revRes.data);
+      if (sugRes?.success && sugRes.data && sugRes.data.length > 0) setSuggestions(sugRes.data);
+      if (repRes?.success && repRes.data && repRes.data.length > 0) setReports(repRes.data);
+      if (statsRes?.success && statsRes.data && statsRes.data.aiStats.total_calls > 0) {
+        setAiStats(statsRes.data.aiStats);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const today = () => new Date().toISOString().slice(0, 10);
 
-  const addSuggestion = (userName: string, data: NewSuggestion) =>
+  const addSuggestion = (userName: string, data: NewSuggestion) => {
     setSuggestions((prev) => [
       { id: 's' + Date.now(), ...data, user_name: userName, created_at: today(), status: 'pending' },
       ...prev,
     ]);
+    void communityApi.createSuggestion({ user_name: userName, ...data });
+  };
 
   const setSuggestionStatus = (id: string, status: ReviewStatus) =>
     setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
 
-  const rejectSuggestion = (id: string) => setSuggestionStatus(id, 'rejected');
+  const rejectSuggestion = (id: string) => {
+    setSuggestionStatus(id, 'rejected');
+    void communityApi.rejectSuggestion(id);
+  };
 
   /** Duyệt đề xuất: thêm vào danh sách địa điểm ở trạng thái ẨN, admin bổ sung thông tin rồi mới bật cho AI */
   const approveSuggestion = (id: string) => {
@@ -122,6 +151,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       is_active: false,
     });
     setSuggestionStatus(id, 'approved');
+    void communityApi.approveSuggestion(id);
   };
 
   const reportClosed = (placeId: string, userName: string): 'ok' | 'duplicate' => {
@@ -131,6 +161,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       { id: 'rp' + Date.now(), place_id: placeId, user_name: userName, created_at: today(), status: 'open' },
       ...prev,
     ]);
+    void communityApi.createReport({ place_id: placeId, user_name: userName });
     return 'ok';
   };
 
@@ -148,6 +179,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           : x
       )
     );
+    void communityApi.resolveReport(id, confirmClosed);
   };
 
   const togglePlaceActive = (id: string) =>
@@ -184,7 +216,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
     });
 
-  const addReview = (placeId: string, userName: string, rating: number, content: string) =>
+  const addReview = (placeId: string, userName: string, rating: number, content: string) => {
     setReviews((prev) => [
       {
         id: 'r' + Date.now(),
@@ -197,12 +229,18 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       ...prev,
     ]);
+    void communityApi.createReview({ place_id: placeId, user_name: userName, rating, content });
+  };
 
-  const setReviewStatus = (reviewId: string, status: ReviewStatus) =>
+  const setReviewStatus = (reviewId: string, status: ReviewStatus) => {
     setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, status } : r)));
+    void communityApi.updateReviewStatus(reviewId, status);
+  };
 
-  const deleteReview = (reviewId: string) =>
+  const deleteReview = (reviewId: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    void communityApi.deleteReview(reviewId);
+  };
 
   return (
     <PlacesContext.Provider
