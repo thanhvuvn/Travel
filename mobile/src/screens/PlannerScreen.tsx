@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { GUEST_AI_LIMIT, useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, PulseView, ScalePress } from '../components/AnimatedUI';
 import { Area, WeatherCondition } from '../types';
@@ -23,6 +24,7 @@ interface PlannerScreenProps {
 
 export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated }) => {
   const { theme } = useTheme();
+  const { isVietnamese, t } = useLanguage();
   const { role, openAuthModal } = useAuth();
   const { createPlan, guestUsed, weatherCondition } = useAppData();
   const [errorKind, setErrorKind] = useState<null | 'error' | 'limit' | 'empty'>(null);
@@ -41,11 +43,11 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
   const [loadingTextIndex, setLoadingTextIndex] = useState<number>(0);
 
   const interestOptions = [
-    { key: 'food', label: 'Ẩm thực đặc sản', icon: '🍜' },
-    { key: 'checkin', label: 'Sống ảo / Check-in', icon: '📸' },
-    { key: 'beach', label: 'Tắm biển & Thư giãn', icon: '🏖️' },
-    { key: 'culture', label: 'Di tích & Lịch sử', icon: '🏮' },
-    { key: 'cafe', label: 'Cà phê view đẹp', icon: '☕' },
+    { key: 'food', label: isVietnamese ? 'Ẩm thực đặc sản' : 'Local Cuisine', icon: '🍜' },
+    { key: 'checkin', label: isVietnamese ? 'Sống ảo / Check-in' : 'Photo Spots', icon: '📸' },
+    { key: 'beach', label: isVietnamese ? 'Tắm biển & Thư giãn' : 'Beach & Relax', icon: '🏖️' },
+    { key: 'culture', label: isVietnamese ? 'Di tích & Lịch sử' : 'Culture & Heritage', icon: '🏮' },
+    { key: 'cafe', label: isVietnamese ? 'Cà phê view đẹp' : 'Scenic Cafes', icon: '☕' },
   ];
 
   const budgetPresets = [1500000, 3000000, 5000000, 8000000];
@@ -117,10 +119,10 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           </View>
           <View>
             <Text style={[styles.headerTitle, { color: theme.text }]}>
-              Lập Lịch Trình Vivu AI
+              {t('planner_title')}
             </Text>
             <Text style={[styles.headerSub, { color: theme.textMuted }]}>
-              Tự động tối ưu cung đường & ngân sách
+              {t('planner_sub')}
             </Text>
           </View>
         </View>
@@ -137,11 +139,13 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <Ionicons name="time-outline" size={15} color={theme.secondary} />
             <Text style={[styles.timingBannerTitle, { color: theme.text }]}>
-              Khung giờ vàng du lịch bản địa
+              {t('planner_timing_title')}
             </Text>
           </View>
           <Text style={[styles.timingBannerDesc, { color: theme.textMuted }]}>
-            AI sẽ tự động căn giờ: Phố cổ Hội An (sau 16:30 ngắm đèn lồng), Cầu Rồng (21:00 cuối tuần), Biển Mỹ Khê (sáng sớm hoặc chiều mát).
+            {isVietnamese
+              ? 'AI sẽ tự động căn giờ: Phố cổ Hội An (sau 16:30 ngắm đèn lồng), Cầu Rồng (21:00 cuối tuần), Biển Mỹ Khê (sáng sớm hoặc chiều mát).'
+              : 'AI auto-schedules golden hours: Hoi An Old Town (after 16:30 for lanterns), Dragon Bridge (21:00 weekends), My Khe Beach (early morning / late afternoon).'}
           </Text>
         </View>
 
@@ -153,13 +157,28 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           ]}
         >
           <Text style={[styles.stepTitle, { color: theme.text }]}>
-            1. Bạn muốn khám phá khu vực nào?
+            {t('planner_step1')}
           </Text>
           <View style={styles.areaGrid}>
             {[
-              { key: 'danang' as const, emoji: '🌊', title: 'Đà Nẵng', sub: 'Biển, cầu, ẩm thực' },
-              { key: 'hoian' as const, emoji: '🏮', title: 'Hội An', sub: 'Phố cổ, di sản' },
-              { key: 'both' as const, emoji: '✨', title: 'Cả Hai Nơi', sub: 'Kết hợp tối ưu' },
+              {
+                key: 'danang' as const,
+                emoji: '🌊',
+                title: isVietnamese ? 'Đà Nẵng' : 'Da Nang',
+                sub: isVietnamese ? 'Biển, cầu, ẩm thực' : 'Beaches, bridges, food',
+              },
+              {
+                key: 'hoian' as const,
+                emoji: '🏮',
+                title: isVietnamese ? 'Hội An' : 'Hoi An',
+                sub: isVietnamese ? 'Phố cổ, di sản' : 'Old Town, heritage',
+              },
+              {
+                key: 'both' as const,
+                emoji: '✨',
+                title: isVietnamese ? 'Cả Hai Nơi' : 'Both Cities',
+                sub: isVietnamese ? 'Kết hợp tối ưu' : 'Best combo trip',
+              },
             ].map((opt) => {
               const isSelected = area === opt.key;
               return (
@@ -201,12 +220,12 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           ]}
         >
           <Text style={[styles.stepTitle, { color: theme.text }]}>
-            2. Thời gian & Số lượng người đi
+            {t('planner_step2')}
           </Text>
           <View style={styles.rowTwoCols}>
             <View style={styles.colHalf}>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
-                Số ngày tham quan
+                {t('planner_days')}
               </Text>
               <View style={styles.counterWrap}>
                 {[1, 2, 3, 4].map((d) => {
@@ -240,7 +259,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
 
             <View style={styles.colHalf}>
               <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
-                Số người tham gia
+                {t('planner_people')}
               </Text>
               <View style={styles.counterWrap}>
                 {[1, 2, 4, 6].map((p) => {
@@ -283,9 +302,9 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
         >
           <View style={styles.stepHeaderRow}>
             <Text style={[styles.stepTitle, { color: theme.text, marginBottom: 0 }]}>
-              3. Sở thích của bạn
+              {t('planner_step3')}
             </Text>
-            <Text style={[styles.stepTip, { color: theme.textSub }]}>Chọn nhiều mục</Text>
+            <Text style={[styles.stepTip, { color: theme.textSub }]}>{t('planner_step3_tip')}</Text>
           </View>
           <View style={[styles.interestWrap, { marginTop: 10 }]}>
             {interestOptions.map((opt) => {
@@ -329,7 +348,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
         >
           <View style={styles.stepHeaderRow}>
             <Text style={[styles.stepTitle, { color: theme.text, marginBottom: 0 }]}>
-              4. Dự trù ngân sách
+              {t('planner_step4')}
             </Text>
             <Text style={[styles.budgetValue, { color: theme.amber }]}>
               {formatCurrency(budget)}
@@ -376,9 +395,9 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
         >
           <View style={styles.stepHeaderRow}>
             <Text style={[styles.stepTitle, { color: theme.text, marginBottom: 0 }]}>
-              5. Mùa lễ hội & Thời tiết ưu tiên
+              {t('planner_step5')}
             </Text>
-            <Text style={[styles.stepTip, { color: theme.textSub }]}>Tối ưu trải nghiệm</Text>
+            <Text style={[styles.stepTip, { color: theme.textSub }]}>{t('planner_step5_tip')}</Text>
           </View>
 
           {/* Chọn sự kiện */}
@@ -422,9 +441,9 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
           </Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
             {[
-              { cond: 'sunny' as const, label: 'Nắng đẹp', icon: '☀️' },
-              { cond: 'cloudy' as const, label: 'Dịu mát', icon: '⛅' },
-              { cond: 'rainy' as const, label: 'Mưa rào (Trú mưa)', icon: '🌧️' },
+              { cond: 'sunny' as const, label: isVietnamese ? 'Nắng đẹp' : 'Sunny', icon: '☀️' },
+              { cond: 'cloudy' as const, label: isVietnamese ? 'Dịu mát' : 'Mild', icon: '⛅' },
+              { cond: 'rainy' as const, label: isVietnamese ? 'Mưa rào (Trú mưa)' : 'Rainy (Indoor)', icon: '🌧️' },
             ].map((w) => {
               const active = selectedWeather === w.cond;
               return (
@@ -464,12 +483,12 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({ onPlanGenerated })
             {isLoading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.generateButtonText}>Đang tạo lịch trình...</Text>
+                <Text style={styles.generateButtonText}>{t('planner_loading')}</Text>
               </View>
             ) : (
               <>
                 <Ionicons name="sparkles" size={18} color="#fff" />
-                <Text style={styles.generateButtonText}>Vivu AI, Tạo Lịch Trình Ngay!</Text>
+                <Text style={styles.generateButtonText}>{t('planner_cta')}</Text>
               </>
             )}
           </ScalePress>

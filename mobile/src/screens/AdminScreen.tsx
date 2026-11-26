@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Modal,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
+import { communityApi } from '../services/communityApi';
 import { Area, Category, Place } from '../types';
 import { Alert } from '../utils/dialog';
 import { formatCurrency } from '../utils/format';
@@ -57,7 +58,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   const totalModeration = pendingReviews.length + pendingSuggestions.length + openReports.length;
 
   const [moderationTab, setModerationTab] = useState<'reviews' | 'suggestions' | 'reports'>('reviews');
-  const WEEK = [
+  const DEFAULT_WEEK = [
     { d: 'T2', v: 12 },
     { d: 'T3', v: 18 },
     { d: 'T4', v: 9 },
@@ -66,11 +67,28 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     { d: 'T7', v: 28 },
     { d: 'CN', v: 24 },
   ];
-  const weekMax = Math.max(...WEEK.map((w) => w.v));
+  const [WEEK, setWeek] = useState(DEFAULT_WEEK);
+  const weekMax = Math.max(1, ...WEEK.map((w) => w.v));
   const hotPlaces = [...places].sort((a, b) => b.review_count - a.review_count).slice(0, 5);
   const hotMax = Math.max(1, ...hotPlaces.map((p) => p.review_count));
 
   const [activeTab, setActiveTab] = useState<AdminTab>('places');
+
+  // Đồng bộ biểu đồ 7 ngày thật từ GET /api/admin/stats (fallback về DEFAULT_WEEK nếu chưa có log AI)
+  useEffect(() => {
+    if (activeTab !== 'overview') return;
+    let mounted = true;
+    communityApi.getAdminStats().then((res) => {
+      if (!mounted || !res?.success || !res.data) return;
+      const hasData = res.data.weeklyCalls.some((item) => item.v > 0);
+      if (hasData) {
+        setWeek(res.data.weeklyCalls.map((item) => ({ d: item.d, v: item.v })));
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab]);
   const [filterArea, setFilterArea] = useState<Area | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [sortBy, setSortBy] = useState<'default' | 'rating_desc' | 'cost_asc' | 'cost_desc' | 'name_asc'>('default');
@@ -94,6 +112,50 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80'
   );
   const [formTags, setFormTags] = useState('đặc sản, ẩm thực');
+
+  const PRESET_IMAGES = [
+    {
+      label: '🍜 Ẩm thực',
+      url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
+    },
+    {
+      label: '🏖️ Bãi biển',
+      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    },
+    {
+      label: '🏮 Phố cổ',
+      url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=600&auto=format&fit=crop&q=80',
+    },
+    {
+      label: '☕ Cà phê',
+      url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop&q=80',
+    },
+  ];
+
+  const handlePickLocalImage = () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            setFormImage(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    } else {
+      Alert.alert(
+        'Chọn ảnh',
+        'Trên điện thoại, bạn có thể dán trực tiếp link ảnh (URL) hoặc chọn nhanh ảnh mẫu bên dưới.'
+      );
+    }
+  };
 
   // Thống kê nhanh
   const activePlacesCount = places.filter((p) => p.is_active).length;
@@ -1448,6 +1510,95 @@ Danh sách địa điểm active: [
                 />
               </View>
 
+              {/* ẢNH ĐỊA ĐIỂM: XEM TRƯỚC + CHỌN FILE TỪ MÁY + LINK URL + ẢNH MẪU */}
+              <View style={styles.formGroup}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.formLabel, { color: theme.textMuted }]}>
+                    Ảnh địa điểm (URL hoặc tải từ máy)
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: theme.blueLight,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                    }}
+                    onPress={handlePickLocalImage}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={12} color={theme.primaryLight} />
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
+                      Chọn ảnh từ máy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {formImage.trim().length > 0 && (
+                  <View
+                    style={{
+                      height: 130,
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.bg,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Image
+                      source={{ uri: formImage.trim() }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  </View>
+                )}
+
+                <TextInput
+                  style={[
+                    styles.formInput,
+                    { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text, marginTop: 4 },
+                  ]}
+                  placeholder="Dán link ảnh https://..."
+                  placeholderTextColor={theme.textSub}
+                  value={formImage}
+                  onChangeText={setFormImage}
+                  autoCapitalize="none"
+                />
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6, marginTop: 4 }}
+                >
+                  {PRESET_IMAGES.map((preset) => (
+                    <TouchableOpacity
+                      key={preset.label}
+                      style={{
+                        paddingHorizontal: 9,
+                        paddingVertical: 5,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: formImage === preset.url ? theme.primary : theme.border,
+                        backgroundColor: formImage === preset.url ? theme.blueLight : theme.bg,
+                      }}
+                      onPress={() => setFormImage(preset.url)}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: formImage === preset.url ? theme.primaryLight : theme.textMuted,
+                        }}
+                      >
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
               <View style={styles.formRow}>
                 <View style={styles.formCol}>
                   <Text style={[styles.formLabel, { color: theme.textMuted }]}>Khu vực</Text>
@@ -1848,8 +1999,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalSheet: {
+    width: '100%',
+    maxWidth: 640,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',

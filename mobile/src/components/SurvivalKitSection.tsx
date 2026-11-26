@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   CHECKLIST_GROUPS,
@@ -18,6 +19,7 @@ type KitTab = 'checklist' | 'hotline' | 'tips';
 
 export const SurvivalKitSection: React.FC = () => {
   const { theme } = useTheme();
+  const { isVietnamese, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<KitTab>('checklist');
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
 
@@ -75,12 +77,8 @@ export const SurvivalKitSection: React.FC = () => {
     >
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: theme.text }]}>
-            🎒 Cẩm Nang Bỏ Túi & Hotline
-          </Text>
-          <Text style={[styles.sub, { color: theme.textSub }]}>
-            Chuẩn bị hành lý, mẹo bản địa & hỗ trợ khẩn cấp Đà Nẵng
-          </Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t('kit_title')}</Text>
+          <Text style={[styles.sub, { color: theme.textSub }]}>{t('kit_sub')}</Text>
         </View>
       </View>
 
@@ -88,24 +86,24 @@ export const SurvivalKitSection: React.FC = () => {
       <View style={[styles.tabsRow, { backgroundColor: theme.bg, borderColor: theme.border }]}>
         {(
           [
-            { key: 'checklist', label: `Hành lý (${doneCount}/${totalCount})`, icon: 'checkbox-outline' },
-            { key: 'hotline', label: 'Hotline 24/7', icon: 'call-outline' },
-            { key: 'tips', label: 'Mẹo hay', icon: 'bulb-outline' },
+            { key: 'checklist', label: `${t('kit_tab_packing')} (${doneCount}/${totalCount})`, icon: 'checkbox-outline' },
+            { key: 'hotline', label: t('kit_tab_hotline'), icon: 'call-outline' },
+            { key: 'tips', label: t('kit_tab_tips'), icon: 'bulb-outline' },
           ] as { key: KitTab; label: string; icon: keyof typeof Ionicons.glyphMap }[]
-        ).map((t) => {
-          const active = activeTab === t.key;
+        ).map((tabItem) => {
+          const active = activeTab === tabItem.key;
           return (
             <TouchableOpacity
-              key={t.key}
+              key={tabItem.key}
               style={[
                 styles.tabBtn,
                 active && { backgroundColor: theme.primary },
               ]}
-              onPress={() => setActiveTab(t.key)}
+              onPress={() => setActiveTab(tabItem.key)}
               activeOpacity={0.8}
             >
               <Ionicons
-                name={t.icon}
+                name={tabItem.icon}
                 size={13}
                 color={active ? '#fff' : theme.textMuted}
               />
@@ -117,7 +115,7 @@ export const SurvivalKitSection: React.FC = () => {
                 ]}
                 numberOfLines={1}
               >
-                {t.label}
+                {tabItem.label}
               </Text>
             </TouchableOpacity>
           );
@@ -129,12 +127,12 @@ export const SurvivalKitSection: React.FC = () => {
         <FadeInView triggerKey="kit-checklist" duration={220} slideOffset={6}>
           <View style={styles.progressHeader}>
             <Text style={{ fontSize: 10, fontWeight: '700', color: theme.textMuted }}>
-              Tiến độ chuẩn bị: {progressPct}%
+              {t('kit_progress')} {progressPct}%
             </Text>
             {doneCount > 0 && (
               <TouchableOpacity onPress={resetChecklist}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: theme.rose }}>
-                  Đặt lại
+                  {t('kit_reset')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -156,7 +154,9 @@ export const SurvivalKitSection: React.FC = () => {
               const items = PACKING_CHECKLIST.filter((i) => i.group === grp.key);
               return (
                 <View key={grp.key}>
-                  <Text style={[styles.groupTitle, { color: theme.text }]}>{grp.title}</Text>
+                  <Text style={[styles.groupTitle, { color: theme.text }]}>
+                    {isVietnamese ? grp.title : grp.titleEn}
+                  </Text>
                   <View style={{ gap: 6, marginTop: 4 }}>
                     {items.map((item) => {
                       const checked = checkedIds.includes(item.id);
@@ -185,7 +185,7 @@ export const SurvivalKitSection: React.FC = () => {
                               checked && styles.checkLabelDone,
                             ]}
                           >
-                            {item.label}
+                            {isVietnamese ? item.label : item.labelEn}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -217,12 +217,16 @@ export const SurvivalKitSection: React.FC = () => {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.hotlineTitle, { color: theme.text }]}>{hl.title}</Text>
-                <Text style={[styles.hotlineDesc, { color: theme.textMuted }]}>{hl.desc}</Text>
+                <Text style={[styles.hotlineTitle, { color: theme.text }]}>
+                  {isVietnamese ? hl.title : hl.titleEn}
+                </Text>
+                <Text style={[styles.hotlineDesc, { color: theme.textMuted }]}>
+                  {isVietnamese ? hl.desc : hl.descEn}
+                </Text>
               </View>
               <ScalePress
                 style={[styles.callBtn, { backgroundColor: theme.emerald }]}
-                onPress={() => callPhone(hl.phone, hl.title, hl.displayPhone)}
+                onPress={() => callPhone(hl.phone, isVietnamese ? hl.title : hl.titleEn, hl.displayPhone)}
               >
                 <Ionicons name="call" size={12} color="#fff" />
                 <Text style={styles.callBtnText}>{hl.displayPhone}</Text>
@@ -244,9 +248,11 @@ export const SurvivalKitSection: React.FC = () => {
               ]}
             >
               <Text style={[styles.tipTitle, { color: theme.text }]}>
-                {tip.icon} {tip.title}
+                {tip.icon} {isVietnamese ? tip.title : tip.titleEn}
               </Text>
-              <Text style={[styles.tipDetail, { color: theme.textMuted }]}>{tip.detail}</Text>
+              <Text style={[styles.tipDetail, { color: theme.textMuted }]}>
+                {isVietnamese ? tip.detail : tip.detailEn}
+              </Text>
             </View>
           ))}
         </FadeInView>

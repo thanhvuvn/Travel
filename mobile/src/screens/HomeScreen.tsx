@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, ScalePress } from '../components/AnimatedUI';
@@ -37,6 +38,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenPlace,
 }) => {
   const { theme } = useTheme();
+  const { isVietnamese, t } = useLanguage();
   const { user, openAuthModal } = useAuth();
   const { places } = usePlaces();
   const {
@@ -80,12 +82,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const categories: { key: Category; label: string; icon: string }[] = [
-    { key: 'all', label: 'Tất cả', icon: '🔥' },
-    { key: 'food', label: 'Ẩm thực', icon: '🍜' },
-    { key: 'beach', label: 'Bãi biển', icon: '🏖️' },
-    { key: 'checkin', label: 'Check-in', icon: '📸' },
-    { key: 'culture', label: 'Văn hóa', icon: '🏮' },
-    { key: 'cafe', label: 'Cà phê', icon: '☕' },
+    { key: 'all', label: t('home_cat_all'), icon: '🔥' },
+    { key: 'food', label: t('home_cat_food'), icon: '🍜' },
+    { key: 'beach', label: t('home_cat_beach'), icon: '🏖️' },
+    { key: 'checkin', label: t('home_cat_checkin'), icon: '📸' },
+    { key: 'culture', label: t('home_cat_culture'), icon: '🏮' },
+    { key: 'cafe', label: t('home_cat_cafe'), icon: '☕' },
   ];
 
   const handleHeart = (placeId: string) => {
@@ -137,23 +139,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText}>
-                {user ? `Xin chào, ${user.name} 👋` : 'Chào bạn đến miền Trung 👋'}
+                {user ? `${t('home_greeting_user')} ${user.name} 👋` : t('home_greeting_guest')}
               </Text>
               <Text style={styles.appNameText}>Vivu AI Travel Guide</Text>
             </View>
             {!user && (
               <TouchableOpacity style={styles.headerLoginBtn} onPress={() => openAuthModal('login')}>
                 <Ionicons name="log-in-outline" size={14} color="#fff" />
-                <Text style={styles.headerLoginText}>Đăng nhập</Text>
+                <Text style={styles.headerLoginText}>{t('home_login')}</Text>
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.areaSwitcher}>
             {([
-              { k: 'danang', l: 'Đà Nẵng' },
-              { k: 'hoian', l: 'Hội An' },
-              { k: 'all', l: 'Cả 2 khu vực' },
+              { k: 'danang', l: t('home_area_dn') },
+              { k: 'hoian', l: t('home_area_ha') },
+              { k: 'all', l: t('home_area_all') },
             ] as { k: Area | 'all'; l: string }[]).map((a) => (
               <TouchableOpacity
                 key={a.k}
@@ -169,7 +171,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Tìm quán ăn, bãi biển, Chùa Cầu..."
+              placeholder={t('home_search_placeholder')}
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -206,11 +208,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {currentWeather.temp}°C
                   </Text>
                   <Text style={[styles.weatherLabelText, { color: theme.primaryLight }]}>
-                    {currentWeather.label}
+                    {isVietnamese ? currentWeather.label : currentWeather.labelEn || currentWeather.label}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 10, color: theme.textSub }}>
-                  {activeWeatherArea === 'danang' ? 'Đà Nẵng' : 'Hội An'} • Độ ẩm {currentWeather.humidity}% • Mưa {currentWeather.rain_chance}%
+                  {activeWeatherArea === 'danang'
+                    ? isVietnamese ? 'Đà Nẵng' : 'Da Nang'
+                    : isVietnamese ? 'Hội An' : 'Hoi An'}{' '}
+                  • {isVietnamese ? 'Độ ẩm' : 'Humidity'} {currentWeather.humidity}% •{' '}
+                  {isVietnamese ? 'Mưa' : 'Rain'} {currentWeather.rain_chance}%
                 </Text>
               </View>
             </View>
@@ -266,8 +272,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 },
               ]}
             >
-              <Text style={{ fontWeight: '700' }}>Gợi ý thời tiết: </Text>
-              {currentWeather.recommendation}
+              <Text style={{ fontWeight: '700' }}>{t('home_weather_tip')}</Text>
+              {isVietnamese
+                ? currentWeather.recommendation
+                : currentWeather.recommendationEn || currentWeather.recommendation}
             </Text>
           </View>
         </View>
@@ -278,11 +286,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="calendar-outline" size={15} color={theme.accent} />
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Sự kiện & Mùa lễ hội
+                {t('home_events_title')}
               </Text>
             </View>
             <Text style={[styles.sectionCount, { color: theme.accent, fontWeight: '700' }]}>
-              Đang diễn ra
+              {t('home_events_live')}
             </Text>
           </View>
 
@@ -310,18 +318,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     ]}
                   >
                     <Text style={[styles.eventBadgeText, { color: theme.primaryLight }]}>
-                      {ev.badge}
+                      {isVietnamese ? ev.badge : ev.badgeEn || ev.badge}
                     </Text>
                   </View>
                 </View>
                 <Text style={[styles.eventTitle, { color: theme.text }]} numberOfLines={1}>
-                  {ev.title}
+                  {isVietnamese ? ev.title : ev.titleEn || ev.title}
                 </Text>
                 <Text style={[styles.eventPeriod, { color: theme.secondary }]} numberOfLines={1}>
-                  📅 {ev.period}
+                  📅 {isVietnamese ? ev.period : ev.periodEn || ev.period}
                 </Text>
                 <Text style={[styles.eventDesc, { color: theme.textMuted }]} numberOfLines={2}>
-                  {ev.description}
+                  {isVietnamese ? ev.description : ev.descriptionEn || ev.description}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -333,18 +341,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <View style={{ flex: 1, paddingRight: 10 }}>
             <View style={styles.aiBadge}>
               <Ionicons name="sparkles" size={12} color={theme.secondary} />
-              <Text style={[styles.aiBadgeText, { color: theme.secondary }]}>AI LẬP LỊCH TRÌNH</Text>
+              <Text style={[styles.aiBadgeText, { color: theme.secondary }]}>{t('home_ai_badge')}</Text>
             </View>
-            <Text style={[styles.aiBannerTitle, { color: theme.text }]}>Bạn chưa biết đi đâu?</Text>
+            <Text style={[styles.aiBannerTitle, { color: theme.text }]}>{t('home_ai_title')}</Text>
             <Text style={[styles.aiBannerSub, { color: theme.textMuted }]}>
-              Để Vivu AI sắp xếp trọn vẹn trong 5 giây
+              {t('home_ai_sub')}
             </Text>
           </View>
           <ScalePress
             style={[styles.aiBannerButton, { backgroundColor: theme.secondary }]}
             onPress={onNavigateToPlanner}
           >
-            <Text style={styles.aiBannerButtonText}>Tạo Ngay</Text>
+            <Text style={styles.aiBannerButtonText}>{t('home_ai_cta')}</Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
           </ScalePress>
         </View>
@@ -355,7 +363,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="restaurant-outline" size={15} color={theme.secondary} />
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Bản Đồ Ẩm Thực Xứ Quảng
+                {t('home_food_title')}
               </Text>
             </View>
             <TouchableOpacity
@@ -364,7 +372,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             >
               <Ionicons name="camera-outline" size={13} color={theme.primaryLight} />
               <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primaryLight }}>
-                Quét món bằng AI
+                {t('home_food_scan')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -396,7 +404,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     ]}
                   >
                     <Text style={styles.areaTagText}>
-                      {dish.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}
+                      {dish.area === 'danang'
+                        ? isVietnamese ? 'Đà Nẵng' : 'Da Nang'
+                        : isVietnamese ? 'Hội An' : 'Hoi An'}
                     </Text>
                   </View>
                   <View style={styles.foodVisionBadge}>
@@ -407,20 +417,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                 <View style={{ padding: 10 }}>
                   <Text style={[styles.foodTrailName, { color: theme.text }]} numberOfLines={1}>
-                    {dish.emoji} {dish.name}
+                    {dish.emoji} {isVietnamese ? dish.name : dish.nameEn}
                   </Text>
                   <Text
                     style={[styles.foodTrailTagline, { color: theme.textMuted }]}
                     numberOfLines={1}
                   >
-                    {dish.tagline}
+                    {isVietnamese ? dish.tagline : dish.taglineEn}
                   </Text>
                   <View style={styles.foodTrailFooter}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.emerald }}>
                       {dish.priceRange}
                     </Text>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
-                      Khám phá →
+                      {t('home_food_explore')}
                     </Text>
                   </View>
                 </View>
@@ -455,9 +465,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* PLACES GRID */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            {selectedArea === 'all' ? 'Điểm nổi bật nhất' : selectedArea === 'danang' ? 'Điểm đến Đà Nẵng' : 'Điểm đến Hội An'}
+            {selectedArea === 'all'
+              ? t('home_places_all')
+              : selectedArea === 'danang'
+              ? t('home_places_dn')
+              : t('home_places_ha')}
           </Text>
-          <Text style={[styles.sectionCount, { color: theme.textMuted }]}>({filteredPlaces.length} địa điểm)</Text>
+          <Text style={[styles.sectionCount, { color: theme.textMuted }]}>
+            ({filteredPlaces.length} {t('home_places_count')})
+          </Text>
         </View>
 
         {filteredPlaces.length === 0 ? (
@@ -499,7 +515,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       <Ionicons name={fav ? 'heart' : 'heart-outline'} size={16} color={fav ? '#F43F5E' : '#fff'} />
                     </TouchableOpacity>
                     <View style={[styles.areaTag, place.area === 'danang' ? { backgroundColor: '#2563EB' } : { backgroundColor: '#EA580C' }]}>
-                      <Text style={styles.areaTagText}>{place.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}</Text>
+                      <Text style={styles.areaTagText}>
+                        {place.area === 'danang'
+                          ? isVietnamese ? 'Đà Nẵng' : 'Da Nang'
+                          : isVietnamese ? 'Hội An' : 'Hoi An'}
+                      </Text>
                     </View>
                   </View>
                   <View style={{ padding: 10 }}>
@@ -517,7 +537,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {weatherCondition === 'rainy' && place.weather_suitability === 'indoor' && (
                       <View style={[styles.bestTimeBadge, { backgroundColor: theme.blueLight, borderColor: theme.primaryLight, marginTop: 3 }]}>
                         <Text style={[styles.bestTimeText, { color: theme.primaryLight }]} numberOfLines={1}>
-                          ☔ Thích hợp trú mưa
+                          {isVietnamese ? '☔ Thích hợp trú mưa' : '☔ Great for rainy days'}
                         </Text>
                       </View>
                     )}
@@ -537,7 +557,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="location" size={16} color={theme.emerald} />
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Quanh bạn (GPS)</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home_nearby_title')}</Text>
           </View>
         </View>
 
@@ -584,14 +604,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={[styles.suggestCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Ionicons name="add-circle" size={30} color={theme.primaryLight} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: theme.text }}>Biết một nơi hay chưa có trong app?</Text>
-            <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }}>Đề xuất để Admin thêm vào cho mọi người.</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: theme.text }}>{t('home_suggest_title')}</Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }}>{t('home_suggest_sub')}</Text>
           </View>
           <TouchableOpacity
             style={[styles.suggestBtn, { backgroundColor: theme.primary }]}
             onPress={handleSuggest}
           >
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>Đề xuất</Text>
+            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{t('home_suggest_btn')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -627,7 +647,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     ]}
                   >
                     <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>
-                      Đặc sản {selectedDish.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}
+                      {isVietnamese
+                        ? `Đặc sản ${selectedDish.area === 'danang' ? 'Đà Nẵng' : 'Hội An'}`
+                        : `${selectedDish.area === 'danang' ? 'Da Nang' : 'Hoi An'} Specialty`}
                     </Text>
                   </View>
                   <View style={styles.dishPricePill}>
@@ -641,10 +663,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
                 <View>
                   <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>
-                    {selectedDish.emoji} {selectedDish.name}
+                    {selectedDish.emoji} {isVietnamese ? selectedDish.name : selectedDish.nameEn}
                   </Text>
                   <Text style={{ fontSize: 12, color: theme.secondary, fontWeight: '600', marginTop: 2 }}>
-                    {selectedDish.tagline}
+                    {isVietnamese ? selectedDish.tagline : selectedDish.taglineEn}
                   </Text>
                 </View>
 
@@ -655,10 +677,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ]}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text, marginBottom: 4 }}>
-                    📖 Câu chuyện văn hóa ẩm thực
+                    {isVietnamese ? '📖 Câu chuyện văn hóa ẩm thực' : '📖 Culinary Heritage Story'}
                   </Text>
                   <Text style={{ fontSize: 12, color: theme.textMuted, lineHeight: 18 }}>
-                    {selectedDish.story}
+                    {isVietnamese ? selectedDish.story : selectedDish.storyEn}
                   </Text>
                 </View>
 
@@ -669,17 +691,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ]}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: theme.secondary, marginBottom: 4 }}>
-                    🍴 Bí quyết ăn đúng điệu người bản xứ
+                    {isVietnamese
+                      ? '🍴 Bí quyết ăn đúng điệu người bản xứ'
+                      : '🍴 How Locals Enjoy This Dish'}
                   </Text>
                   <Text style={{ fontSize: 12, color: theme.text, lineHeight: 18 }}>
-                    {selectedDish.howToEat}
+                    {isVietnamese ? selectedDish.howToEat : selectedDish.howToEatEn}
                   </Text>
                 </View>
 
                 {/* Danh sách quán chuẩn vị trong hệ thống */}
                 <View>
                   <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text, marginBottom: 8 }}>
-                    📍 Quán chuẩn vị trong hệ thống Vivu AI
+                    {isVietnamese
+                      ? '📍 Quán chuẩn vị trong hệ thống Vivu AI'
+                      : '📍 Authentic Spots in Vivu AI'}
                   </Text>
                   {places
                     .filter(
@@ -703,8 +729,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {p.name}
                           </Text>
                           <Text style={{ fontSize: 10, color: theme.textSub, marginTop: 2 }}>
-                            ★ {p.rating} ({p.review_count}) • {formatCurrency(p.avg_cost)} • Mở:{' '}
-                            {p.open_hours}
+                            ★ {p.rating} ({p.review_count}) • {formatCurrency(p.avg_cost)} •{' '}
+                            {isVietnamese ? 'Mở:' : 'Open:'} {p.open_hours}
                           </Text>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -720,7 +746,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             }}
                           >
                             <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
-                              Chi tiết
+                              {isVietnamese ? 'Chi tiết' : 'Details'}
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
@@ -732,25 +758,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                               if (!plan) {
                                 setSelectedDish(null);
                                 Alert.alert(
-                                  'Chưa có lịch trình',
-                                  'Hãy tạo lịch trình bằng AI trước rồi thêm quán này vào.',
+                                  isVietnamese ? 'Chưa có lịch trình' : 'No itinerary yet',
+                                  isVietnamese
+                                    ? 'Hãy tạo lịch trình bằng AI trước rồi thêm quán này vào.'
+                                    : 'Generate an AI itinerary first before adding this spot.',
                                   [
-                                    { text: 'Để sau', style: 'cancel' },
-                                    { text: 'Tạo lịch', onPress: onNavigateToPlanner },
+                                    { text: isVietnamese ? 'Để sau' : 'Later', style: 'cancel' },
+                                    { text: isVietnamese ? 'Tạo lịch' : 'Plan Now', onPress: onNavigateToPlanner },
                                   ]
                                 );
                                 return;
                               }
                               if (plan.days[0].items.some((it) => it.place_id === p.id)) {
-                                Alert.alert('Đã có trong lịch', `${p.name} đã có trong Ngày 1.`);
+                                Alert.alert(
+                                  isVietnamese ? 'Đã có trong lịch' : 'Already added',
+                                  isVietnamese
+                                    ? `${p.name} đã có trong Ngày 1.`
+                                    : `${p.name} is already in Day 1.`
+                                );
                                 return;
                               }
                               addPlaceToDay(0, p);
-                              Alert.alert('Đã thêm!', `Đã thêm "${p.name}" vào Ngày 1 của lịch trình.`);
+                              Alert.alert(
+                                isVietnamese ? 'Đã thêm!' : 'Added!',
+                                isVietnamese
+                                  ? `Đã thêm "${p.name}" vào Ngày 1 của lịch trình.`
+                                  : `Added "${p.name}" to Day 1 of your itinerary.`
+                              );
                             }}
                           >
                             <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
-                              + Lịch
+                              {isVietnamese ? '+ Lịch' : '+ Trip'}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -770,7 +808,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 >
                   <Ionicons name="scan-circle-outline" size={20} color="#fff" />
                   <Text style={styles.dishVisionBtnText}>
-                    Mở Camera Gemini Vision AI quét thử món này
+                    {isVietnamese
+                      ? 'Mở Camera Gemini Vision AI quét thử món này'
+                      : 'Open Gemini Vision AI Camera to Scan Dish'}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -906,8 +946,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   dishModalSheet: {
+    width: '100%',
+    maxWidth: 520,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',

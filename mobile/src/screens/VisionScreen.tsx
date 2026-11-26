@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, LaserSweep, PulseView, ScalePress } from '../components/AnimatedUI';
@@ -23,6 +24,7 @@ interface VisionScreenProps {
 
 export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, onGoPlanner }) => {
   const { theme } = useTheme();
+  const { isVietnamese, t } = useLanguage();
   const { places } = usePlaces();
   const {
     plan,
@@ -56,13 +58,13 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
   > = {
     miquang: {
       url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
-      title: 'Mì Quảng Tôm Thịt / Ếch',
+      title: isVietnamese ? MOCK_SPECIALTIES[0].name : MOCK_SPECIALTIES[0].nameEn,
       emoji: '🍜',
       shortLabel: 'Mì Quảng',
-      category: 'Đặc sản ẩm thực Đà Nẵng',
+      category: isVietnamese ? 'Đặc sản ẩm thực Đà Nẵng' : 'Da Nang Culinary Specialty',
       confidence: 97,
-      desc: MOCK_SPECIALTIES[0].story,
-      howToEat: MOCK_SPECIALTIES[0].howToEat,
+      desc: isVietnamese ? MOCK_SPECIALTIES[0].story : MOCK_SPECIALTIES[0].storyEn,
+      howToEat: isVietnamese ? MOCK_SPECIALTIES[0].howToEat : MOCK_SPECIALTIES[0].howToEatEn,
       placeId: 'dn01',
       matchedPlace: {
         name: 'Mì Quảng Bà Mua',
@@ -73,13 +75,13 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     },
     caolau: {
       url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=80',
-      title: 'Cao Lầu Phố Cổ Hội An',
+      title: isVietnamese ? MOCK_SPECIALTIES[1].name : MOCK_SPECIALTIES[1].nameEn,
       emoji: '🥢',
       shortLabel: 'Cao Lầu',
-      category: 'Đặc sản ẩm thực Hội An',
+      category: isVietnamese ? 'Đặc sản ẩm thực Hội An' : 'Hoi An Culinary Specialty',
       confidence: 96,
-      desc: MOCK_SPECIALTIES[1].story,
-      howToEat: MOCK_SPECIALTIES[1].howToEat,
+      desc: isVietnamese ? MOCK_SPECIALTIES[1].story : MOCK_SPECIALTIES[1].storyEn,
+      howToEat: isVietnamese ? MOCK_SPECIALTIES[1].howToEat : MOCK_SPECIALTIES[1].howToEatEn,
       placeId: 'ha02',
       matchedPlace: {
         name: 'Cao Lầu Thanh Hội An',
@@ -90,13 +92,13 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     },
     banhtrangthitheo: {
       url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80',
-      title: 'Bánh Tráng Cuốn Thịt Heo 2 Đầu Da',
+      title: isVietnamese ? MOCK_SPECIALTIES[2].name : MOCK_SPECIALTIES[2].nameEn,
       emoji: '🌯',
-      shortLabel: 'Bánh Tráng Thịt Heo',
-      category: 'Đặc sản ẩm thực Đà Nẵng',
+      shortLabel: isVietnamese ? 'Bánh Tráng Thịt Heo' : 'Pork Rolls',
+      category: isVietnamese ? 'Đặc sản ẩm thực Đà Nẵng' : 'Da Nang Culinary Specialty',
       confidence: 95,
-      desc: MOCK_SPECIALTIES[2].story,
-      howToEat: MOCK_SPECIALTIES[2].howToEat,
+      desc: isVietnamese ? MOCK_SPECIALTIES[2].story : MOCK_SPECIALTIES[2].storyEn,
+      howToEat: isVietnamese ? MOCK_SPECIALTIES[2].howToEat : MOCK_SPECIALTIES[2].howToEatEn,
       placeId: 'dn05',
       matchedPlace: {
         name: 'Đặc Sản Trần (Bánh Tráng Cuốn Thịt Heo)',
@@ -107,13 +109,13 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     },
     banhmiphuong: {
       url: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=600&auto=format&fit=crop&q=80',
-      title: 'Bánh Mì Hội An Giòn Rụm',
+      title: isVietnamese ? MOCK_SPECIALTIES[3].name : MOCK_SPECIALTIES[3].nameEn,
       emoji: '🥖',
       shortLabel: 'Bánh Mì Phượng',
-      category: 'Ẩm thực đường phố Hội An',
+      category: isVietnamese ? 'Ẩm thực đường phố Hội An' : 'Hoi An Street Food',
       confidence: 98,
-      desc: MOCK_SPECIALTIES[3].story,
-      howToEat: MOCK_SPECIALTIES[3].howToEat,
+      desc: isVietnamese ? MOCK_SPECIALTIES[3].story : MOCK_SPECIALTIES[3].storyEn,
+      howToEat: isVietnamese ? MOCK_SPECIALTIES[3].howToEat : MOCK_SPECIALTIES[3].howToEatEn,
       placeId: 'ha03',
       matchedPlace: {
         name: 'Bánh Mì Phượng Hội An',
@@ -124,17 +126,19 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
     },
     caurong: {
       url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=600&auto=format&fit=crop&q=80',
-      title: 'Cầu Rồng Đà Nẵng',
+      title: isVietnamese ? 'Cầu Rồng Đà Nẵng' : 'Dragon Bridge Da Nang',
       emoji: '🐉',
-      shortLabel: 'Cầu Rồng',
-      category: 'Địa danh biểu tượng',
+      shortLabel: isVietnamese ? 'Cầu Rồng' : 'Dragon Bridge',
+      category: isVietnamese ? 'Địa danh biểu tượng' : 'Iconic Landmark',
       confidence: 98,
-      desc: 'Cây cầu thép dài 666m hình con rồng vươn mình ra biển lớn, có khả năng phun lửa và phun nước vào 21h thứ Bảy và Chủ Nhật.',
+      desc: isVietnamese
+        ? 'Cây cầu thép dài 666m hình con rồng vươn mình ra biển lớn, có khả năng phun lửa và phun nước vào 21h thứ Bảy và Chủ Nhật.'
+        : 'A 666m steel dragon-shaped bridge stretching toward the sea, breathing real fire and water every Saturday and Sunday at 21:00.',
       placeId: 'dn02',
       matchedPlace: {
         name: 'Cầu Rồng Phun Lửa',
         address: 'Bắc Mỹ Phú, Sơn Trà, Đà Nẵng',
-        cost: 'Miễn phí',
+        cost: isVietnamese ? 'Miễn phí' : 'Free',
         distance: '1.2km',
       },
     },
@@ -225,10 +229,10 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
           <Text style={[styles.badgeText, { color: theme.accent }]}>GEMINI VISION AI</Text>
         </View>
         <Text style={[styles.headerTitle, { color: theme.text }]}>
-          Quét Món Ăn & Danh Thắng
+          {t('vision_title')}
         </Text>
         <Text style={[styles.headerSub, { color: theme.textMuted }]}>
-          Chụp ảnh để AI nhận diện và tìm quán ngon chuẩn vị
+          {t('vision_sub')}
         </Text>
       </View>
 
@@ -246,12 +250,12 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
             {isScanning ? (
               <View style={styles.scanningRow}>
                 <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.scanStatusText}>AI đang phân tích bức ảnh...</Text>
+                <Text style={styles.scanStatusText}>{t('vision_analyzing')}</Text>
               </View>
             ) : (
               <View style={styles.scanningRow}>
                 <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                <Text style={styles.scanStatusText}>Đã nhận diện thành công!</Text>
+                <Text style={styles.scanStatusText}>{t('vision_done')}</Text>
               </View>
             )}
           </View>
@@ -260,17 +264,22 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
         <View style={styles.sampleSwitcherSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <Text style={[styles.switcherLabel, { color: theme.textSub, marginBottom: 0 }]}>
-              Chọn mẫu ảnh đặc sản / danh thắng để quét:
+              {t('vision_pick_sample')}
             </Text>
             <TouchableOpacity
               onPress={() =>
-                Alert.alert('Camera', 'Tính năng mở expo-image-picker để chọn ảnh từ máy thật.')
+                Alert.alert(
+                  'Camera',
+                  isVietnamese
+                    ? 'Tính năng mở expo-image-picker để chọn ảnh từ máy thật.'
+                    : 'Opens expo-image-picker to choose a real photo from your device.'
+                )
               }
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
             >
               <Ionicons name="camera-outline" size={13} color={theme.primaryLight} />
               <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primaryLight }}>
-                Tải ảnh lên
+                {t('vision_upload')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -346,7 +355,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
               <View style={styles.confidenceBadge}>
                 <Ionicons name="flash" size={12} color={theme.emerald} />
                 <Text style={[styles.confidenceText, { color: theme.emerald }]}>
-                  Độ tin cậy {currentSample.confidence}%
+                  {t('vision_confidence')} {currentSample.confidence}%
                 </Text>
               </View>
             </View>
@@ -362,7 +371,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
                 ]}
               >
                 <Text style={{ fontSize: 10, fontWeight: '800', color: theme.secondary }}>
-                  🍴 Bí quyết thưởng thức đúng điệu:
+                  {t('vision_how_to_eat')}
                 </Text>
                 <Text style={{ fontSize: 10, color: theme.text, lineHeight: 15, marginTop: 2 }}>
                   {currentSample.howToEat}
@@ -372,7 +381,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
 
             <View style={[styles.matchedSection, { borderTopColor: theme.border }]}>
               <Text style={[styles.matchedLabel, { color: theme.textSub }]}>
-                Địa điểm chuẩn vị trong hệ thống:
+                {t('vision_matched_label')}
               </Text>
               <View
                 style={[
@@ -402,7 +411,7 @@ export const VisionScreen: React.FC<VisionScreenProps> = ({ onAddToItinerary, on
                   onPress={handleAdd}
                 >
                   <Ionicons name="add" size={16} color="#fff" />
-                  <Text style={styles.addBtnText}>Thêm</Text>
+                  <Text style={styles.addBtnText}>{t('vision_add_btn')}</Text>
                 </ScalePress>
               </View>
             </View>

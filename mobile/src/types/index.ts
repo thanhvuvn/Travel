@@ -9,8 +9,11 @@ export interface WeatherInfo {
   temp: number;
   condition: WeatherCondition;
   label: string;
+  labelEn?: string;
   description: string;
+  descriptionEn?: string;
   recommendation: string;
+  recommendationEn?: string;
   rain_chance: number;
   humidity: number;
 }
@@ -18,11 +21,15 @@ export interface WeatherInfo {
 export interface TravelEvent {
   id: string;
   title: string;
+  titleEn?: string;
   area: Area | 'both';
   period: string;
+  periodEn?: string;
   badge: string;
+  badgeEn?: string;
   icon: string;
   description: string;
+  descriptionEn?: string;
   related_places: string[];
 }
 

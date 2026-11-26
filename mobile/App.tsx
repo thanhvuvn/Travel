@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { AppDataProvider } from './src/context/AppDataContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { PlacesProvider } from './src/context/PlacesContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { BottomNav } from './src/components/BottomNav';
@@ -156,13 +157,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <PlacesProvider>
-            <AppDataProvider>
-              <MainApp />
-            </AppDataProvider>
-          </PlacesProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <PlacesProvider>
+              <AppDataProvider>
+                <MainApp />
+              </AppDataProvider>
+            </PlacesProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

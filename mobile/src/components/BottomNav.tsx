@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { MainTab } from '../types';
 
@@ -85,14 +86,15 @@ const NavTabItem: React.FC<{
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   // Dành riêng cho người dùng du khách & khách vãng lai
   const tabs: { key: MainTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { key: 'home', label: 'Khám phá', icon: 'compass' },
-    { key: 'planner', label: 'Tạo lịch', icon: 'sparkles' },
-    { key: 'itinerary', label: 'Lịch trình', icon: 'map' },
-    { key: 'vision', label: 'Quét AI', icon: 'camera' },
-    { key: 'profile', label: 'Cá nhân', icon: 'person' },
+    { key: 'home', label: t('tab_home'), icon: 'compass' },
+    { key: 'planner', label: t('tab_planner'), icon: 'sparkles' },
+    { key: 'itinerary', label: t('tab_itinerary'), icon: 'map' },
+    { key: 'vision', label: t('tab_vision'), icon: 'camera' },
+    { key: 'profile', label: t('tab_profile'), icon: 'person' },
   ];
 
   return (

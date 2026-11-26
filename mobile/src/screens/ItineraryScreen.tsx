@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
 import { AccordionBox, FadeInView, ScalePress } from '../components/AnimatedUI';
@@ -36,6 +37,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
   onOpenPlace,
 }) => {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { user, openAuthModal } = useAuth();
   const { places } = usePlaces();
   const {
@@ -64,16 +66,16 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         <View style={[styles.emptyIcon, { backgroundColor: theme.blueLight }]}>
           <Ionicons name="map-outline" size={52} color={theme.primaryLight} />
         </View>
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Chưa có lịch trình nào</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{t('itin_empty_title')}</Text>
         <Text style={[styles.emptyDesc, { color: theme.textMuted }]}>
-          Hãy để Vivu AI lập lịch trình theo từng ngày, có giờ giấc, ngân sách và bản đồ chỉ trong vài giây.
+          {t('itin_empty_desc')}
         </Text>
         <ScalePress
           style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
           onPress={onNavigateToPlanner}
         >
           <Ionicons name="sparkles" size={16} color="#fff" />
-          <Text style={styles.emptyBtnText}>Tạo lịch trình bằng AI</Text>
+          <Text style={styles.emptyBtnText}>{t('itin_empty_btn')}</Text>
         </ScalePress>
       </View>
     );
@@ -208,7 +210,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         <View style={styles.budgetTop}>
           <View>
             <Text style={[styles.budgetLabel, { color: theme.textSub }]}>
-              Tổng chi phí • {plan.params.days} ngày • {plan.params.people} người (~{formatShortMoney(perPersonCost)}/người)
+              {t('itin_total_cost')} • {plan.params.days} {t('itin_days')} • {plan.params.people} {t('itin_people')} (~{formatShortMoney(perPersonCost)}{t('itin_per_person')})
             </Text>
             <Text style={[styles.budgetValue, { color: over ? theme.rose : theme.text }]}>
               {formatShortMoney(totalCost)}{' '}
@@ -218,7 +220,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           <View style={[styles.statusPill, { backgroundColor: over ? theme.roseLight : theme.emeraldLight }]}>
             <Ionicons name={over ? 'warning' : 'checkmark-circle'} size={13} color={over ? theme.rose : theme.emerald} />
             <Text style={[styles.statusPillText, { color: over ? theme.rose : theme.emerald }]}>
-              {over ? `Vượt ${formatShortMoney(totalCost - budget)}` : `Còn ${formatShortMoney(budget - totalCost)}`}
+              {over ? `${t('itin_over')} ${formatShortMoney(totalCost - budget)}` : `${t('itin_left')} ${formatShortMoney(budget - totalCost)}`}
             </Text>
           </View>
         </View>
@@ -255,7 +257,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
         ))}
         <TouchableOpacity style={[styles.dirBtn, { backgroundColor: theme.primary }]} onPress={() => openMaps()}>
           <Ionicons name="navigate" size={13} color="#fff" />
-          <Text style={styles.dirBtnText}>Dẫn đường Google Maps</Text>
+          <Text style={styles.dirBtnText}>{t('itin_maps_btn')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -296,14 +298,14 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
             onPress={() => setAddOpen(true)}
           >
             <Ionicons name="add-circle-outline" size={15} color={theme.primaryLight} />
-            <Text style={[styles.toolBtnText, { color: theme.primaryLight }]}>Thêm điểm</Text>
+            <Text style={[styles.toolBtnText, { color: theme.primaryLight }]}>{t('itin_add_place')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toolBtn, { backgroundColor: theme.amberLight, borderColor: theme.amber }]}
             onPress={confirmRegenerate}
           >
             <Ionicons name="refresh" size={15} color={theme.amber} />
-            <Text style={[styles.toolBtnText, { color: theme.amber }]}>Tạo lại ngày này</Text>
+            <Text style={[styles.toolBtnText, { color: theme.amber }]}>{t('itin_regen_day')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -600,7 +602,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
       <View style={[styles.footerBar, { backgroundColor: theme.navBg, borderTopColor: theme.border }]}>
         <ScalePress style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSave}>
           <Ionicons name="bookmark" size={16} color="#fff" />
-          <Text style={styles.saveBtnText}>Lưu lịch trình</Text>
+          <Text style={styles.saveBtnText}>{t('itin_save')}</Text>
         </ScalePress>
         <ScalePress
           style={[
@@ -610,7 +612,7 @@ export const ItineraryScreen: React.FC<ItineraryScreenProps> = ({
           onPress={() => setShareOpen(true)}
         >
           <Ionicons name="share-social" size={16} color={theme.primaryLight} />
-          <Text style={[styles.shareBtnText, { color: theme.primaryLight }]}>Chia sẻ</Text>
+          <Text style={[styles.shareBtnText, { color: theme.primaryLight }]}>{t('itin_share')}</Text>
         </ScalePress>
         <ScalePress
           style={[styles.iconBtn, { backgroundColor: theme.roseLight, borderColor: theme.rose }]}
