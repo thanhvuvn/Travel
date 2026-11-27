@@ -93,12 +93,10 @@ npm install
 
 ---
 
-## 🔑 4. Tài Khoản Thử Nghiệm
+## 🔑 4. Backend và tài khoản thử nghiệm
 
-Ứng dụng tích hợp sẵn **bộ nút chuyển đổi quyền nhanh 1 chạm** tại màn hình đăng nhập (Tab *Cá nhân* -> Bấm *Đăng nhập*):
-
-| Vai trò | Email đăng nhập | Mật khẩu | Quyền hạn |
-| :--- | :--- | :--- | :--- |
-| **Khách (Guest)** | *(Không cần)* | *(Không cần)* | Trải nghiệm toàn bộ tính năng khám phá, tạo lịch, quét ảnh |
-| **Thành viên (User)** | `dukhach@vivuai.vn` | `123456` | Lưu lịch trình, yêu thích địa điểm, gửi đánh giá, đề xuất quán |
-| **Quản trị (Admin)** | `admin@vivuai.vn` | `admin123` | Toàn quyền Admin Portal: Quản lý điểm, duyệt bài, xem thống kê |
+Auth, địa điểm và quản lý tài khoản dùng backend thật; không còn nút giả lập quyền admin.
+Xem [hướng dẫn backend](backend/README.md) và [bàn giao phần Hoan](docs/HOAN-BE-CORE.md)
+để cấu hình PostgreSQL local, JWT, seed và URL API cho web/điện thoại.
+Tài khoản seed: `admin@vivuai.vn` (admin), `dukhach@vivuai.vn` (user).
+Mật khẩu do người chạy đặt qua `SEED_ADMIN_PASSWORD` / `SEED_USER_PASSWORD`, không có mật khẩu mặc định.

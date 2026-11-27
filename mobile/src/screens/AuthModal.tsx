@@ -25,9 +25,10 @@ export const AuthModal: React.FC = () => {
     closeAuthModal,
     login,
     register,
-    setDemoRole,
+    isLoading,
   } = useAuth();
 
+  const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<AuthMode>(authModalInitialTab);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,11 +44,14 @@ export const AuthModal: React.FC = () => {
     }
   }, [isAuthModalVisible, authModalInitialTab]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting || isLoading) return;
+    setSubmitting(true);
+    try {
     setErrorMsg('');
 
     if (mode === 'login') {
-      const res = login(email, password);
+      const res = await login(email, password);
       if (!res.ok && res.error) {
         setErrorMsg(res.error);
       }
@@ -56,7 +60,7 @@ export const AuthModal: React.FC = () => {
         setErrorMsg('Mật khẩu xác nhận không khớp.');
         return;
       }
-      const res = register(name, email, password);
+      const res = await register(name, email, password);
       if (!res.ok && res.error) {
         setErrorMsg(res.error);
       }
@@ -66,16 +70,12 @@ export const AuthModal: React.FC = () => {
         return;
       }
       Alert.alert(
-        'Đã gửi email khôi phục',
-        `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${email.trim()}.`
+        'Chưa hỗ trợ',
+        'Chức năng khôi phục mật khẩu chưa được triển khai. Liên hệ quản trị viên.'
       );
       setMode('login');
     }
-  };
-
-  const handleSelectDemo = (role: 'guest' | 'user' | 'admin') => {
-    setDemoRole(role);
-    closeAuthModal();
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -122,80 +122,6 @@ export const AuthModal: React.FC = () => {
                   ? 'Tạo tài khoản mới để trải nghiệm đầy đủ chức năng'
                   : 'Nhập email của bạn để đặt lại mật khẩu'}
               </Text>
-            </View>
-
-            {/* CHUYỂN ĐỔI QUYỀN NHANH (DEMO ĐỒ ÁN) - ĐƯỢC ĐẶT NỔI BẬT TẠI ĐÂY */}
-            <View
-              style={[
-                styles.quickDemoCard,
-                { backgroundColor: theme.bg, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.quickDemoHeader}>
-                <Ionicons name="flash" size={14} color={theme.amber} />
-                <Text style={[styles.quickDemoTitle, { color: theme.text }]}>
-                  Chuyển Đổi Quyền Nhanh (Demo Đồ Án)
-                </Text>
-              </View>
-              <Text style={[styles.quickDemoDesc, { color: theme.textSub }]}>
-                Bấm 1 chạm để chuyển ngay sang vai trò mong muốn khi thuyết trình:
-              </Text>
-
-              <View style={styles.quickDemoBtnRow}>
-                {/* 1. KHÁCH */}
-                <TouchableOpacity
-                  style={[
-                    styles.quickDemoBtn,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
-                  ]}
-                  onPress={() => handleSelectDemo('guest')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="person-outline" size={14} color={theme.textMuted} />
-                  <Text style={[styles.quickDemoBtnText, { color: theme.text }]}>
-                    Khách
-                  </Text>
-                  <Text style={[styles.quickDemoBadge, { color: theme.textSub }]}>
-                    Dùng thử
-                  </Text>
-                </TouchableOpacity>
-
-                {/* 2. USER */}
-                <TouchableOpacity
-                  style={[
-                    styles.quickDemoBtn,
-                    { backgroundColor: theme.blueLight, borderColor: theme.primaryLight },
-                  ]}
-                  onPress={() => handleSelectDemo('user')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="person" size={14} color={theme.primaryLight} />
-                  <Text style={[styles.quickDemoBtnText, { color: theme.primaryLight }]}>
-                    Người Dùng
-                  </Text>
-                  <Text style={[styles.quickDemoBadge, { color: theme.primaryLight }]}>
-                    Đầy đủ
-                  </Text>
-                </TouchableOpacity>
-
-                {/* 3. ADMIN */}
-                <TouchableOpacity
-                  style={[
-                    styles.quickDemoBtn,
-                    { backgroundColor: theme.roseLight, borderColor: theme.rose },
-                  ]}
-                  onPress={() => handleSelectDemo('admin')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="shield-checkmark" size={14} color={theme.rose} />
-                  <Text style={[styles.quickDemoBtnText, { color: theme.rose }]}>
-                    Admin
-                  </Text>
-                  <Text style={[styles.quickDemoBadge, { color: theme.rose }]}>
-                    Quản trị
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             {/* Divider */}
@@ -380,6 +306,7 @@ export const AuthModal: React.FC = () => {
               {/* Submit Button */}
               <TouchableOpacity
                 style={[styles.submitBtn, { backgroundColor: theme.primary }]}
+                disabled={submitting || isLoading}
                 onPress={handleSubmit}
                 activeOpacity={0.85}
               >

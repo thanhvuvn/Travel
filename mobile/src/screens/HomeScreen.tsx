@@ -40,7 +40,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const { theme } = useTheme();
   const { isVietnamese, t } = useLanguage();
   const { user, openAuthModal } = useAuth();
-  const { places } = usePlaces();
+  const { places, isLoading, error, refreshPlaces } = usePlaces();
   const {
     isFavorite,
     toggleFavorite,
@@ -58,14 +58,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [selectedDish, setSelectedDish] = useState<SpecialtyDish | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 650);
-  };
+  const refreshing = isLoading;
+  const handleRefresh = () => { void refreshPlaces(); };
 
   const activeWeatherArea: Area = selectedArea === 'hoian' ? 'hoian' : 'danang';
   const currentWeather = MOCK_WEATHER_DATA[activeWeatherArea][weatherCondition];
@@ -134,6 +128,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         }
       >
+        {isLoading && <Text style={{ color: theme.text, padding: 12 }}>Đang tải địa điểm...</Text>}
+        {error && <TouchableOpacity onPress={handleRefresh}><Text style={{ color: theme.text, padding: 12 }}>{error} Nhấn để thử lại.</Text></TouchableOpacity>}
+        {!isLoading && !error && places.length === 0 && <Text style={{ color: theme.text, padding: 12 }}>Chưa có địa điểm đang hoạt động.</Text>}
         {/* HEADER */}
         <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
           <View style={styles.headerTop}>

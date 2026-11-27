@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 import { usePlaces } from '../context/PlacesContext';
 import { useTheme } from '../context/ThemeContext';
 import { communityApi } from '../services/communityApi';
@@ -32,6 +33,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   onPreviewUserApp,
 }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const {
     places,
     users,
@@ -40,7 +42,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     addPlace,
     updatePlace,
     deletePlace,
-    resetPlacesToDefault,
+    isLoading, error, refreshPlaces, resetPlacesToDefault,
     toggleUserLock,
     reviews,
     setReviewStatus,
@@ -72,6 +74,9 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   const hotPlaces = [...places].sort((a, b) => b.review_count - a.review_count).slice(0, 5);
   const hotMax = Math.max(1, ...hotPlaces.map((p) => p.review_count));
 
+  const [resetting, setResetting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const showError = (e: unknown) => Alert.alert('Lỗi', e instanceof Error ? e.message : 'Thao tác thất bại.');
   const [activeTab, setActiveTab] = useState<AdminTab>('places');
 
   // Đồng bộ biểu đồ 7 ngày thật từ GET /api/admin/stats (fallback về DEFAULT_WEEK nếu chưa có log AI)
@@ -165,6 +170,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
 
   const openAddModal = () => {
     setEditingPlaceId(null);
+    setFormImage(PRESET_IMAGES[0].url);
     setFormName('');
     setFormArea('danang');
     setFormCategory('food');
@@ -194,20 +200,25 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     setIsPlaceModalOpen(true);
   };
 
-  const handleSavePlace = () => {
+  const handleSavePlace = async () => {
+    if (saving) return;
     if (!formName.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập tên địa điểm');
       return;
     }
 
+    if ([formLat, formLng, formCost].some(v => !v.trim() || !Number.isFinite(Number(v)))) {
+      Alert.alert('Lỗi', 'Tọa độ và chi phí phải là số hợp lệ.');
+      return;
+    }
     const placeData = {
       name: formName.trim(),
       area: formArea,
       category: formCategory,
       type: formType.trim() || 'Địa điểm tham quan',
-      lat: parseFloat(formLat) || 16.0612,
-      lng: parseFloat(formLng) || 108.2198,
-      avg_cost: parseInt(formCost, 10) || 0,
+      lat: Number(formLat),
+      lng: Number(formLng),
+      avg_cost: Number(formCost),
       open_hours: formHours.trim() || 'Cả ngày',
       description: formDesc.trim() || 'Điểm đến hấp dẫn tại Đà Nẵng - Hội An',
       image: formImage.trim(),
@@ -215,30 +226,33 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
-      is_active: true,
+      is_active: editingPlaceId ? places.find(p => p.id === editingPlaceId)?.is_active ?? true : true,
     };
 
+    setSaving(true);
+    try {
     if (editingPlaceId) {
-      updatePlace(editingPlaceId, placeData);
+      await updatePlace(editingPlaceId, placeData);
       Alert.alert('Thành công', 'Đã cập nhật thông tin địa điểm.');
     } else {
-      addPlace(placeData);
+      await addPlace(placeData);
       Alert.alert('Thành công', 'Đã thêm địa điểm mới vào hệ thống.');
     }
 
     setIsPlaceModalOpen(false);
+    } catch (e) { showError(e); } finally { setSaving(false); }
   };
 
   const handleDeletePlace = (place: Place) => {
     Alert.alert(
       'Xác nhận xóa',
-      `Bạn có chắc chắn muốn xóa địa điểm "${place.name}" khỏi hệ thống?`,
+      `Ẩn địa điểm "${place.name}"? Lịch trình, yêu thích và đánh giá được giữ nguyên.`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Xóa vĩnh viễn',
+          text: 'Ẩn địa điểm',
           style: 'destructive',
-          onPress: () => deletePlace(place.id),
+          onPress: () => { void deletePlace(place.id).catch(showError); },
         },
       ]
     );
@@ -265,20 +279,19 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     });
 
   const handleResetDemoData = () => {
-    Alert.alert(
-      'Khôi phục dữ liệu mẫu gốc',
-      'Thao tác này sẽ đưa toàn bộ danh sách địa điểm về trạng thái chuẩn ban đầu. Bạn chắc chắn muốn tiếp tục?',
-      [
+    if (resetting) return;
+    Alert.alert('Khôi phục dữ liệu mẫu',
+      'Khôi phục thông tin và bật lại 16 địa điểm mẫu. Địa điểm thêm mới, tài khoản, đánh giá, yêu thích và lịch trình được giữ nguyên. Chỉ dùng trên database local/test.', [
         { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Khôi phục ngay',
-          onPress: () => {
-            resetPlacesToDefault();
-            Alert.alert('Thành công', 'Đã khôi phục toàn bộ dữ liệu địa điểm gốc!');
-          },
-        },
-      ]
-    );
+        { text: 'Khôi phục', onPress: async () => {
+          setResetting(true);
+          try {
+            const count = await resetPlacesToDefault();
+            Alert.alert('Thành công', `Đã khôi phục ${count} địa điểm mẫu từ backend.`);
+          } catch (e) { showError(e); }
+          finally { setResetting(false); }
+        } },
+      ]);
   };
 
   const handleExportCSV = async () => {
@@ -322,6 +335,12 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {isLoading && <Text style={{ color: theme.text, padding: 8 }}>Đang tải dữ liệu...</Text>}
+      {error && <TouchableOpacity onPress={() => { void refreshPlaces(); }}><Text style={{ color: theme.text, padding: 8 }}>{error} Nhấn để thử lại.</Text></TouchableOpacity>}
+      {!isLoading && !error && activeTab === 'places' && filteredPlaces.length === 0 && <Text style={{ color: theme.text }}>Không có địa điểm phù hợp.</Text>}
+      {!isLoading && !error && activeTab === 'users' && users.length === 0 && <Text style={{ color: theme.text }}>Chưa có tài khoản.</Text>}
+      {activeTab === 'reviews' || activeTab === 'overview' ? <Text style={{ color: theme.textMuted, padding: 8 }}>Các mục cộng đồng/thống kê còn dùng fallback demo của nhóm khi API chưa có dữ liệu.</Text> : null}
+
       {/* HEADER QUẢN TRỊ */}
       <View
         style={[
@@ -341,7 +360,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
               Vivu AI Admin Portal
             </Text>
             <Text style={[styles.headerSub, { color: theme.textMuted }]}>
-              Đang đăng nhập: admin@vivuai.vn
+              Đang đăng nhập: {user?.email}
             </Text>
           </View>
 
@@ -606,7 +625,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                 })}
               </ScrollView>
 
-              {/* Thanh tiện ích quản trị: Xuất CSV & Khôi phục mẫu gốc */}
+              {/* Thanh tiện ích quản trị: Xuất CSV & Khôi phục mẫu */}
               <View style={styles.adminUtilsRow}>
                 <TouchableOpacity
                   style={[
@@ -627,12 +646,13 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                     styles.adminUtilBtn,
                     { backgroundColor: theme.amberLight, borderColor: theme.amber },
                   ]}
+                  disabled={resetting}
                   onPress={handleResetDemoData}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="refresh-outline" size={14} color={theme.secondary} />
                   <Text style={[styles.adminUtilBtnText, { color: theme.secondary }]}>
-                    Khôi phục mẫu gốc
+                    {resetting ? 'Đang khôi phục...' : 'Khôi phục mẫu gốc'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -695,7 +715,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                       <View style={styles.aiToggleWrap}>
                         <Switch
                           value={place.is_active}
-                          onValueChange={() => togglePlaceActive(place.id)}
+                          onValueChange={() => { void togglePlaceActive(place.id).catch(showError); }}
                           trackColor={{ false: theme.border, true: theme.emerald }}
                           thumbColor="#fff"
                         />
@@ -844,7 +864,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                           borderColor: u.is_locked ? theme.emerald : theme.rose,
                         },
                       ]}
-                      onPress={() => toggleUserLock(u.id)}
+                      onPress={() => { void toggleUserLock(u.id).catch(showError); }}
                     >
                       <Ionicons
                         name={u.is_locked ? 'lock-open-outline' : 'lock-closed-outline'}
@@ -1741,7 +1761,8 @@ Danh sách địa điểm active: [
 
               <TouchableOpacity
                 style={[styles.savePlaceBtn, { backgroundColor: theme.primary }]}
-                onPress={handleSavePlace}
+                disabled={saving}
+                    onPress={handleSavePlace}
                 activeOpacity={0.85}
               >
                 <Ionicons name="save-outline" size={18} color="#fff" />

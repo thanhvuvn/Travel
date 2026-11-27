@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import app from './app';
+import { jwtSecret } from './lib/auth';
+
+jwtSecret();
 
 const PORT = Number(process.env.PORT) || 4000;
 
