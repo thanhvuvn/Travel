@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { MOCK_PLACES } from '../data/mockPlaces';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { apiRequest } from '../services/api';
+import { useAuth } from './AuthContext';
+import { Alert } from '../utils/dialog';
 import { MOCK_REVIEWS } from '../data/mockReviews';
-import { MOCK_USERS } from '../data/mockUsers';
 import { MOCK_REPORTS, MOCK_SUGGESTIONS } from '../data/mockCommunity';
 import { communityApi } from '../services/communityApi';
 import {
@@ -27,6 +28,10 @@ export interface NewSuggestion {
 
 interface PlacesContextValue {
   places: Place[];
+  isLoading: boolean;
+  error: string | null;
+  refreshPlaces: () => Promise<void>;
+  resetPlacesToDefault: () => Promise<number>;
   users: ManagedUser[];
   reviews: Review[];
   suggestions: PlaceSuggestion[];
@@ -37,12 +42,11 @@ interface PlacesContextValue {
   reportClosed: (placeId: string, userName: string) => 'ok' | 'duplicate';
   resolveReport: (id: string, confirmClosed: boolean) => void;
   aiStats: AIStat;
-  togglePlaceActive: (id: string) => void;
-  addPlace: (place: Omit<Place, 'id' | 'rating' | 'review_count'>) => void;
-  updatePlace: (id: string, updated: Partial<Place>) => void;
-  deletePlace: (id: string) => void;
-  resetPlacesToDefault: () => void;
-  toggleUserLock: (userId: string) => void;
+  togglePlaceActive: (id: string) => Promise<void>;
+  addPlace: (place: Omit<Place, 'id' | 'rating' | 'review_count'>) => Promise<void>;
+  updatePlace: (id: string, updated: Partial<Place>) => Promise<void>;
+  deletePlace: (id: string) => Promise<void>;
+  toggleUserLock: (userId: string) => Promise<void>;
   recordAICall: (success: boolean) => void;
   addReview: (placeId: string, userName: string, rating: number, content: string) => void;
   setReviewStatus: (reviewId: string, status: ReviewStatus) => void;
@@ -59,8 +63,10 @@ const INITIAL_AI_STATS: AIStat = {
 const noop = () => {};
 
 const PlacesContext = createContext<PlacesContextValue>({
-  places: MOCK_PLACES,
-  users: MOCK_USERS,
+  places: [],
+  isLoading: false, error: null, refreshPlaces: async () => {},
+  resetPlacesToDefault: async () => 0,
+  users: [],
   reviews: MOCK_REVIEWS,
   suggestions: MOCK_SUGGESTIONS,
   reports: MOCK_REPORTS,
@@ -70,12 +76,11 @@ const PlacesContext = createContext<PlacesContextValue>({
   reportClosed: () => 'ok',
   resolveReport: noop,
   aiStats: INITIAL_AI_STATS,
-  togglePlaceActive: noop,
-  addPlace: noop,
-  updatePlace: noop,
-  deletePlace: noop,
-  resetPlacesToDefault: noop,
-  toggleUserLock: noop,
+  togglePlaceActive: async () => {},
+  addPlace: async () => {},
+  updatePlace: async () => {},
+  deletePlace: async () => {},
+  toggleUserLock: async () => {},
   recordAICall: noop,
   addReview: noop,
   setReviewStatus: noop,
@@ -83,12 +88,42 @@ const PlacesContext = createContext<PlacesContextValue>({
 });
 
 export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [places, setPlaces] = useState<Place[]>(MOCK_PLACES);
-  const [users, setUsers] = useState<ManagedUser[]>(MOCK_USERS);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>(MOCK_SUGGESTIONS);
   const [reports, setReports] = useState<PlaceReport[]>(MOCK_REPORTS);
   const [aiStats, setAiStats] = useState<AIStat>(INITIAL_AI_STATS);
+
+  const { user, isLoading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestVersion = useRef(0);
+  const refreshPlaces = useCallback(async () => {
+    const version = ++requestVersion.current;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await apiRequest<Place[]>(user?.role === 'admin' ? '/places?include_inactive=true' : '/places');
+      if (version !== requestVersion.current) return;
+      setPlaces(data);
+      if (user?.id && user.role === 'admin') {
+        const accounts = await apiRequest<ManagedUser[]>('/users');
+        if (version === requestVersion.current) setUsers(accounts);
+      }
+    } catch (e) {
+      if (version === requestVersion.current) setError(e instanceof Error ? e.message : 'Không thể tải dữ liệu.');
+    } finally { if (version === requestVersion.current) setIsLoading(false); }
+  }, [user]);
+  useEffect(() => {
+    // Clear data at the session boundary before fetching another account.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUsers([]);
+    setPlaces([]);
+    if (!authLoading) void refreshPlaces();
+    const invalidate = () => { requestVersion.current++; };
+    return invalidate;
+  }, [refreshPlaces, authLoading]);
 
   // Tự động đồng bộ Reviews, Suggestions, Reports & Stats từ Backend nếu server đang chạy
   useEffect(() => {
@@ -133,25 +168,11 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /** Duyệt đề xuất: thêm vào danh sách địa điểm ở trạng thái ẨN, admin bổ sung thông tin rồi mới bật cho AI */
   const approveSuggestion = (id: string) => {
-    const s = suggestions.find((x) => x.id === id);
-    if (!s) return;
-    const center = s.area === 'danang' ? { lat: 16.0612, lng: 108.2198 } : { lat: 15.8771, lng: 108.326 };
-    addPlace({
-      area: s.area,
-      name: s.name,
-      type: 'Địa điểm do người dùng đề xuất',
-      category: s.category,
-      lat: s.lat ?? center.lat,
-      lng: s.lng ?? center.lng,
-      description: s.note || 'Địa điểm do người dùng đề xuất, đang chờ bổ sung thông tin.',
-      image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80',
-      avg_cost: 0,
-      open_hours: 'Chưa cập nhật',
-      tags: ['người dùng đề xuất'],
-      is_active: false,
+    void communityApi.approveSuggestion(id).then(result => {
+      if (!result?.success) { Alert.alert('Lỗi', result?.message || 'Không thể duyệt đề xuất.'); return; }
+      setSuggestionStatus(id, 'approved');
+      void refreshPlaces();
     });
-    setSuggestionStatus(id, 'approved');
-    void communityApi.approveSuggestion(id);
   };
 
   const reportClosed = (placeId: string, userName: string): 'ok' | 'duplicate' => {
@@ -167,43 +188,51 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /** confirmClosed = true: xác nhận quán đóng cửa -> ẩn khỏi AI luôn */
   const resolveReport = (id: string, confirmClosed: boolean) => {
-    const r = reports.find((x) => x.id === id);
-    if (!r) return;
-    if (confirmClosed) {
-      setPlaces((prev) => prev.map((p) => (p.id === r.place_id ? { ...p, is_active: false } : p)));
-    }
-    setReports((prev) =>
-      prev.map((x) =>
-        x.place_id === r.place_id && x.status === 'open' && (confirmClosed || x.id === id)
-          ? { ...x, status: confirmClosed ? 'closed_confirmed' : 'dismissed' }
-          : x
-      )
-    );
-    void communityApi.resolveReport(id, confirmClosed);
+    const report = reports.find(r => r.id === id);
+    if (!report) return;
+    void communityApi.resolveReport(id, confirmClosed).then(result => {
+      if (!result?.success) { Alert.alert('Lỗi', result?.message || 'Không thể xử lý báo cáo.'); return; }
+      setReports(prev => prev.map(item =>
+        item.place_id === report.place_id && item.status === 'open' && (confirmClosed || item.id === id)
+          ? { ...item, status: confirmClosed ? 'closed_confirmed' : 'dismissed' } : item));
+      void refreshPlaces();
+    });
   };
 
-  const togglePlaceActive = (id: string) =>
-    setPlaces((prev) => prev.map((p) => (p.id === id ? { ...p, is_active: !p.is_active } : p)));
-
-  const addPlace = (data: Omit<Place, 'id' | 'rating' | 'review_count'>) => {
-    const newPlace: Place = {
-      ...data,
-      id: (data.area === 'danang' ? 'dn' : 'ha') + (Date.now() % 10000),
-      rating: 5.0,
-      review_count: 1,
-    };
-    setPlaces((prev) => [newPlace, ...prev]);
+  const savePlace = (place: Place) => setPlaces(prev => {
+    const exists = prev.some(p => p.id === place.id);
+    return exists ? prev.map(p => p.id === place.id ? place : p) : [place, ...prev];
+  });
+  const resetPlacesToDefault = async () => {
+    const result = await apiRequest<{ restored_count: number; places: Place[] }>('/places/reset-seed', { method: 'POST' });
+    setPlaces(prev => {
+      const restoredIds = new Set(result.places.map(p => p.id));
+      return [...result.places, ...prev.filter(p => !restoredIds.has(p.id))];
+    });
+    return result.restored_count;
   };
-
-  const updatePlace = (id: string, updated: Partial<Place>) =>
-    setPlaces((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
-
-  const deletePlace = (id: string) => setPlaces((prev) => prev.filter((p) => p.id !== id));
-
-  const resetPlacesToDefault = () => setPlaces(MOCK_PLACES);
-
-  const toggleUserLock = (userId: string) =>
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_locked: !u.is_locked } : u)));
+  const togglePlaceActive = async (id: string) => {
+    const current = places.find(p => p.id === id);
+    savePlace(await apiRequest<Place>(`/places/${id}/toggle`, {
+      method: 'PATCH', body: JSON.stringify({ is_active: !current?.is_active }),
+    }));
+  };
+  const addPlace = async (data: Omit<Place, 'id' | 'rating' | 'review_count'>) => {
+    savePlace(await apiRequest<Place>('/places', { method: 'POST', body: JSON.stringify(data) }));
+  };
+  const updatePlace = async (id: string, updated: Partial<Place>) => {
+    savePlace(await apiRequest<Place>(`/places/${id}`, { method: 'PUT', body: JSON.stringify(updated) }));
+  };
+  const deletePlace = async (id: string) => {
+    savePlace(await apiRequest<Place>(`/places/${id}`, { method: 'DELETE' }));
+  };
+  const toggleUserLock = async (id: string) => {
+    const current = users.find(u => u.id === id);
+    const updated = await apiRequest<ManagedUser>(`/users/${id}/lock`, {
+      method: 'PATCH', body: JSON.stringify({ is_locked: !current?.is_locked }),
+    });
+    setUsers(prev => prev.map(u => u.id === id ? updated : u));
+  };
 
   const recordAICall = (success: boolean) =>
     setAiStats((prev) => {
@@ -246,6 +275,7 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <PlacesContext.Provider
       value={{
         places,
+        isLoading, error, refreshPlaces, resetPlacesToDefault,
         users,
         reviews,
         suggestions,
@@ -260,7 +290,6 @@ export const PlacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addPlace,
         updatePlace,
         deletePlace,
-        resetPlacesToDefault,
         toggleUserLock,
         recordAICall,
         addReview,

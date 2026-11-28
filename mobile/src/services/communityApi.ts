@@ -1,8 +1,7 @@
 import { AIStat, Area, Category, PlaceReport, PlaceSuggestion, Review, ReviewStatus } from '../types';
 
-export const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) ||
-  'http://localhost:4000/api';
+import { apiRequest } from './api';
+export { API_BASE_URL } from './api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -13,16 +12,9 @@ interface ApiResponse<T> {
 
 async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T> | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers ?? {}),
-      },
-      ...options,
-    });
-    return (await res.json()) as ApiResponse<T>;
+    return { success: true, data: await apiRequest<T>(path, options) };
   } catch {
-    // Backend chưa khởi chạy hoặc mất mạng -> fallback an toàn về local state
+    // Legacy community contract: null báo không kết nối được; core APIs không fallback.
     return null;
   }
 }
